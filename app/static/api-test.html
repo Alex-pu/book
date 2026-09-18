@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spa API Test Console</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --ink: #1b1f24;
+      --muted: #667085;
+      --line: #d8dee8;
+      --accent: #0f766e;
+      --accent-strong: #0b5f59;
+      --danger: #b42318;
+      --danger-bg: #fff3f0;
+      --ok: #067647;
+      --shadow: 0 10px 28px rgba(16, 24, 40, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: rgba(247, 248, 250, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) minmax(220px, 420px) auto;
+      gap: 12px;
+      align-items: center;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 14px 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    main {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-6 { grid-column: span 6; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 46px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .body {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 170px;
+      resize: vertical;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    button {
+      min-height: 38px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 12px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover { background: var(--accent-strong); }
+    button.secondary {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+    button.secondary:hover { background: #f2f4f7; }
+    button.danger {
+      background: var(--danger);
+      color: #fff;
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .check {
+      display: flex;
+      grid-template-columns: none;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .check input {
+      width: 18px;
+      min-height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      padding: 3px 9px;
+      color: var(--muted);
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .pill.ok { color: var(--ok); border-color: #abefc6; background: #ecfdf3; }
+    .pill.warn { color: var(--danger); border-color: #fecdca; background: var(--danger-bg); }
+
+    pre {
+      margin: 0;
+      min-height: 420px;
+      max-height: 620px;
+      overflow: auto;
+      border-radius: 8px;
+      border: 1px solid #111827;
+      background: #111827;
+      color: #e5e7eb;
+      padding: 14px;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .table-wrap {
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 8px 9px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 750;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+    .mono {
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1080px) {
+      .topbar { grid-template-columns: 1fr; }
+      main { grid-template-columns: repeat(6, 1fr); }
+      .span-3, .span-4, .span-5, .span-6, .span-7, .span-8 { grid-column: span 6; }
+    }
+
+    @media (max-width: 640px) {
+      main { grid-template-columns: 1fr; padding: 12px; }
+      section, .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-12 { grid-column: span 1; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .topbar { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <h1>Spa API Test Console</h1>
+      <label>
+        Base URL
+        <input id="baseUrl" value="/api/v1">
+      </label>
+      <div class="row">
+        <span id="authState" class="pill warn">No token</span>
+        <button class="secondary" data-action="health">Health</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="span-4">
+      <div class="section-head">
+        <h2>Staff Login</h2>
+        <span class="pill">JWT</span>
+      </div>
+      <div class="body">
+        <div class="grid-2">
+          <label>Phone <input id="loginPhone" autocomplete="username"></label>
+          <label>Password <input id="loginPassword" type="password" autocomplete="current-password"></label>
+        </div>
+        <div class="row">
+          <button data-action="login">Login</button>
+          <button class="secondary" data-action="clearToken">Clear</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="span-4">
+      <div class="section-head">
+        <h2>Catalog</h2>
+        <button class="secondary" data-action="services">Load</button>
+      </div>
+      <div class="body">
+        <label>
+          Service
+          <select id="serviceId"></select>
+        </label>
+        <div id="servicesTable" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section class="span-4">
+      <div class="section-head">
+        <h2>Availability</h2>
+        <button class="secondary" data-action="availability">Load</button>
+      </div>
+      <div class="body">
+        <div class="grid-2">
+          <label>Date <input id="availabilityDate" type="date"></label>
+          <label>Staff <select id="staffId"></select></label>
+        </div>
+        <label>Slot <select id="slotStart"></select></label>
+        <div id="availabilityTable" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section class="span-5">
+      <div class="section-head">
+        <h2>Booking</h2>
+        <span id="bookingState" class="pill">No booking</span>
+      </div>
+      <div class="body">
+        <div class="grid-2">
+          <label>Customer Name <input id="customerName" value="Test Customer"></label>
+          <label>Customer Phone <input id="customerPhone" placeholder="2547XXXXXXXX"></label>
+        </div>
+        <label>Booking ID <input id="bookingId" class="mono"></label>
+        <div class="row">
+          <button data-action="createBooking">Create Booking</button>
+          <button class="secondary" data-action="bookingStatus">Status</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="span-7">
+      <div class="section-head">
+        <h2>M-Pesa Express</h2>
+        <span class="pill warn">Live money</span>
+      </div>
+      <div class="body">
+        <label class="check">
+          <input id="liveMoneyConfirm" type="checkbox">
+          I confirm this can send a live STK prompt and charge the customer phone.
+        </label>
+        <div class="grid-2">
+          <label>Checkout Request ID <input id="checkoutRequestId" class="mono"></label>
+          <label>Payment ID <input id="paymentId" class="mono"></label>
+        </div>
+        <div class="row">
+          <button class="danger" data-action="stkPush">Send STK Push</button>
+          <button class="secondary" data-action="stkQuery">Query STK</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="span-5">
+      <div class="section-head">
+        <h2>Check-ins</h2>
+        <button class="secondary" data-action="openCheckins">Open</button>
+      </div>
+      <div class="body">
+        <label>Walk-in Name <input id="walkInName" value="Walk-in Guest"></label>
+        <div class="grid-2">
+          <label>Check-in ID <input id="checkinId" class="mono"></label>
+          <label>Booking ID <input id="checkinBookingId" class="mono"></label>
+        </div>
+        <div class="row">
+          <button data-action="createCheckin">Check In</button>
+          <button class="secondary" data-action="checkout">Checkout</button>
+          <button class="secondary" data-action="presence">Count</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="span-7">
+      <div class="section-head">
+        <h2>Raw Request</h2>
+        <button class="secondary" data-action="rawRequest">Send</button>
+      </div>
+      <div class="body">
+        <div class="grid-3">
+          <label>Method
+            <select id="rawMethod">
+              <option>GET</option>
+              <option>POST</option>
+              <option>PATCH</option>
+              <option>DELETE</option>
+            </select>
+          </label>
+          <label class="span-two">Path <input id="rawPath" value="/services"></label>
+          <label>Auth
+            <select id="rawAuth">
+              <option value="yes">Bearer token</option>
+              <option value="no">No auth</option>
+            </select>
+          </label>
+        </div>
+        <label>JSON Body <textarea id="rawBody">{}</textarea></label>
+      </div>
+    </section>
+
+    <section class="span-12">
+      <div class="section-head">
+        <h2>Response</h2>
+        <div class="row">
+          <span id="lastStatus" class="pill">Idle</span>
+          <button class="secondary" data-action="clearOutput">Clear</button>
+        </div>
+      </div>
+      <div class="body">
+        <pre id="output"></pre>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = {
+      token: localStorage.getItem("spaApiToken") || "",
+      services: [],
+      slots: []
+    };
+
+    function baseUrl() {
+      return $("baseUrl").value.replace(/\/$/, "");
+    }
+
+    function setOutput(label, value) {
+      $("lastStatus").textContent = label;
+      $("output").textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    }
+
+    function setAuthState() {
+      $("authState").textContent = state.token ? "Token ready" : "No token";
+      $("authState").className = state.token ? "pill ok" : "pill warn";
+    }
+
+    function headers(auth = false) {
+      const h = { "Content-Type": "application/json" };
+      if (auth && state.token) h.Authorization = `Bearer ${state.token}`;
+      return h;
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch(`${baseUrl()}${path}`, {
+        method: options.method || "GET",
+        headers: headers(options.auth),
+        body: options.body === undefined ? undefined : JSON.stringify(options.body)
+      });
+      const text = await response.text();
+      let data = text;
+      try { data = text ? JSON.parse(text) : null; } catch (_) {}
+      setOutput(`${response.status} ${response.statusText}`, data);
+      if (!response.ok) throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+      return data;
+    }
+
+    function renderTable(targetId, rows, columns) {
+      if (!rows.length) {
+        $(targetId).innerHTML = "<table><tbody><tr><td>No rows</td></tr></tbody></table>";
+        return;
+      }
+      const head = columns.map((c) => `<th>${c.label}</th>`).join("");
+      const body = rows.map((row) => {
+        return `<tr>${columns.map((c) => `<td>${c.value(row) ?? ""}</td>`).join("")}</tr>`;
+      }).join("");
+      $(targetId).innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    function setToday() {
+      const today = new Date();
+      $("availabilityDate").value = today.toISOString().slice(0, 10);
+    }
+
+    async function health() {
+      const response = await fetch("/health");
+      const data = await response.json();
+      setOutput(`${response.status} ${response.statusText}`, data);
+    }
+
+    async function login() {
+      const data = await request("/auth/login", {
+        method: "POST",
+        body: { phone: $("loginPhone").value, password: $("loginPassword").value }
+      });
+      state.token = data.access_token;
+      localStorage.setItem("spaApiToken", state.token);
+      setAuthState();
+    }
+
+    async function loadServices() {
+      const data = await request("/services");
+      state.services = data;
+      $("serviceId").innerHTML = data.map((s) => `<option value="${s.id}">${s.name} - KES ${s.price_kes}</option>`).join("");
+      renderTable("servicesTable", data, [
+        { label: "Name", value: (s) => s.name },
+        { label: "Min", value: (s) => s.duration_min },
+        { label: "KES", value: (s) => s.price_kes }
+      ]);
+    }
+
+    async function loadAvailability() {
+      const serviceId = $("serviceId").value;
+      const date = $("availabilityDate").value;
+      const data = await request(`/availability?service_id=${encodeURIComponent(serviceId)}&date=${encodeURIComponent(date)}`);
+      state.slots = data.slots || [];
+      $("staffId").innerHTML = [...new Map(state.slots.map((s) => [s.staff_id, s.staff_name])).entries()]
+        .map(([id, name]) => `<option value="${id}">${name}</option>`).join("");
+      $("slotStart").innerHTML = state.slots
+        .map((s) => `<option value="${s.start_time}" data-staff="${s.staff_id}">${new Date(s.start_time).toLocaleString()} - ${s.staff_name}</option>`).join("");
+      if (state.slots[0]) $("staffId").value = state.slots[0].staff_id;
+      renderTable("availabilityTable", state.slots, [
+        { label: "Staff", value: (s) => s.staff_name },
+        { label: "Start", value: (s) => new Date(s.start_time).toLocaleString() },
+        { label: "End", value: (s) => new Date(s.end_time).toLocaleTimeString() }
+      ]);
+    }
+
+    async function createBooking() {
+      const slot = $("slotStart").selectedOptions[0];
+      const staffId = slot?.dataset.staff || $("staffId").value;
+      const data = await request("/bookings", {
+        method: "POST",
+        body: {
+          service_id: $("serviceId").value,
+          staff_id: staffId,
+          start_time: $("slotStart").value,
+          customer_name: $("customerName").value,
+          customer_phone: $("customerPhone").value
+        }
+      });
+      $("bookingId").value = data.booking_id;
+      $("checkinBookingId").value = data.booking_id;
+      $("bookingState").textContent = data.status;
+      $("bookingState").className = "pill ok";
+    }
+
+    async function bookingStatus() {
+      const data = await request(`/bookings/${$("bookingId").value}/status`);
+      $("bookingState").textContent = data.status;
+      $("bookingState").className = data.status === "confirmed" ? "pill ok" : "pill";
+    }
+
+    async function stkPush() {
+      if (!$("liveMoneyConfirm").checked) {
+        setOutput("Blocked", { detail: "Live money confirmation checkbox is required." });
+        return;
+      }
+      const data = await request("/payments/stk-push", {
+        method: "POST",
+        body: { booking_id: $("bookingId").value }
+      });
+      $("paymentId").value = data.payment_id;
+      $("checkoutRequestId").value = data.checkout_request_id;
+    }
+
+    async function stkQuery() {
+      await request(`/payments/stk-push/${encodeURIComponent($("checkoutRequestId").value)}/query`, {
+        method: "POST",
+        auth: true,
+        body: {}
+      });
+    }
+
+    async function createCheckin() {
+      const bookingId = $("checkinBookingId").value.trim();
+      const body = bookingId ? { booking_id: bookingId } : { customer_name: $("walkInName").value };
+      const data = await request("/checkins", { method: "POST", auth: true, body });
+      $("checkinId").value = data.id;
+    }
+
+    async function checkout() {
+      await request(`/checkins/${$("checkinId").value}/checkout`, { method: "PATCH", auth: true, body: {} });
+    }
+
+    async function openCheckins() {
+      await request("/checkins/open", { auth: true });
+    }
+
+    async function presence() {
+      await request("/presence/count");
+    }
+
+    async function rawRequest() {
+      const method = $("rawMethod").value;
+      const rawBody = $("rawBody").value.trim();
+      const hasBody = !["GET", "DELETE"].includes(method);
+      await request($("rawPath").value, {
+        method,
+        auth: $("rawAuth").value === "yes",
+        body: hasBody ? JSON.parse(rawBody || "{}") : undefined
+      });
+    }
+
+    const actions = {
+      health,
+      login,
+      clearToken: () => {
+        state.token = "";
+        localStorage.removeItem("spaApiToken");
+        setAuthState();
+      },
+      services: loadServices,
+      availability: loadAvailability,
+      createBooking,
+      bookingStatus,
+      stkPush,
+      stkQuery,
+      createCheckin,
+      checkout,
+      openCheckins,
+      presence,
+      rawRequest,
+      clearOutput: () => setOutput("Idle", "")
+    };
+
+    document.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      button.disabled = true;
+      try {
+        await actions[button.dataset.action]();
+      } catch (error) {
+        setOutput("Error", { detail: error.message });
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    setToday();
+    setAuthState();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+"""Spa booking API package."""
