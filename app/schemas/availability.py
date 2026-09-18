@@ -5,10 +5,9 @@ from pydantic import BaseModel
 
 
 class AvailabilitySlot(BaseModel):
-    staff_id: uuid.UUID
-    staff_name: str
     start_time: datetime
     end_time: datetime
+    available_capacity: int
 
 
 class AvailabilityResponse(BaseModel):

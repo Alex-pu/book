@@ -27,7 +27,7 @@ class Staff(Base):
     availability: Mapped[list["StaffAvailability"]] = relationship(
         back_populates="staff", cascade="all, delete-orphan"
     )
-    bookings = relationship("Booking", back_populates="staff")
+    bookings = relationship("Booking", back_populates="staff", foreign_keys="Booking.staff_id")
     checkins = relationship("Checkin", back_populates="checked_in_by_staff")
     services = relationship("Service", secondary="staff_service", back_populates="staff")
 

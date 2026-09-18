@@ -6,14 +6,14 @@ from decimal import Decimal
 
 import httpx
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
 from app.models.booking import Booking
-from app.models.catalog import Service
 from app.models.payment import Payment
 from app.services.fees import calculate_fee
-from app.services.scheduling import PENDING_PAYMENT, SlotUnavailableError, now_utc
+from app.services.scheduling import PENDING_PAYMENT, SlotUnavailableError, now_utc, total_booking_amount
 from app.services.sms import booking_confirmed_message, queue_notification
 
 
@@ -196,23 +196,26 @@ async def initiate_booking_payment(
     daraja_client: DarajaClient | None = None,
 ) -> Payment:
     row = await db.execute(
-        select(Booking, Service)
-        .join(Service, Service.id == Booking.service_id)
+        select(Booking)
+        .options(selectinload(Booking.items))
         .where(Booking.id == booking_id)
         .with_for_update()
     )
-    result = row.one_or_none()
-    if result is None:
+    booking = row.scalar_one_or_none()
+    if booking is None:
         raise SlotUnavailableError("Booking not found")
 
-    booking, service = result
     if booking.status != PENDING_PAYMENT:
         raise SlotUnavailableError("Booking is not awaiting payment")
 
-    fee, net = calculate_fee(service.price_kes, Decimal(str(settings.platform_fee_percent)))
+    amount = total_booking_amount(booking.items)
+    if amount <= 0:
+        raise SlotUnavailableError("Booking has no payable items")
+
+    fee, net = calculate_fee(amount, Decimal(str(settings.platform_fee_percent)))
     payment = Payment(
         booking_id=booking.id,
-        amount_kes=service.price_kes,
+        amount_kes=amount,
         platform_fee_kes=fee,
         net_to_forward_kes=net,
         status="initiated",

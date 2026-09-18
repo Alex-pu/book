@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -7,8 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import require_admin
 from app.core.security import hash_password
 from app.database import get_db
+from app.models.catalog import Service, ServiceCapacityWindow
 from app.models.staff import Staff
 from app.schemas.auth import AdminBootstrapRequest, AdminBootstrapResponse
+from app.schemas.catalog import (
+    ServiceCapacitySettingsUpdate,
+    ServiceCapacityWindowCreate,
+    ServiceCapacityWindowRead,
+    ServiceRead,
+)
 from app.schemas.payment import DisbursementRead, PaymentLedgerItem
 from app.services.disbursements import create_disbursement_batch, list_disbursements, payment_ledger
 
@@ -55,6 +63,70 @@ async def bootstrap_admin(
         await db.refresh(staff)
 
     return AdminBootstrapResponse(staff_id=staff.id, email=staff.email or payload.email, role=staff.role)
+
+
+@router.patch("/services/{service_id}/capacity", response_model=ServiceRead)
+async def update_service_capacity_settings(
+    service_id: uuid.UUID,
+    payload: ServiceCapacitySettingsUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_admin),
+) -> Service:
+    async with db.begin():
+        service = await db.get(Service, service_id)
+        if service is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+        service.capacity_mode = payload.capacity_mode
+        service.capacity_limit = payload.capacity_limit
+        await db.flush()
+        await db.refresh(service)
+    return service
+
+
+@router.post(
+    "/service-capacity",
+    response_model=ServiceCapacityWindowRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_service_capacity_window(
+    payload: ServiceCapacityWindowCreate,
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_admin),
+) -> ServiceCapacityWindow:
+    if payload.end_time <= payload.start_time:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="end_time must be after start_time",
+        )
+
+    async with db.begin():
+        service = await db.get(Service, payload.service_id)
+        if service is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+        window = ServiceCapacityWindow(
+            service_id=payload.service_id,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            capacity=payload.capacity,
+            note=payload.note,
+        )
+        db.add(window)
+        await db.flush()
+        await db.refresh(window)
+    return window
+
+
+@router.get("/service-capacity", response_model=list[ServiceCapacityWindowRead])
+async def list_service_capacity_windows(
+    service_id: uuid.UUID | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_admin),
+) -> list[ServiceCapacityWindow]:
+    stmt = select(ServiceCapacityWindow).order_by(ServiceCapacityWindow.start_time)
+    if service_id is not None:
+        stmt = stmt.where(ServiceCapacityWindow.service_id == service_id)
+    rows = await db.execute(stmt)
+    return list(rows.scalars())
 
 
 @router.get("/disbursements", response_model=list[DisbursementRead])

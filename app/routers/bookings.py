@@ -8,9 +8,20 @@ from app.core.deps import get_current_staff
 from app.database import get_db
 from app.models.booking import Booking
 from app.models.staff import Staff
-from app.schemas.booking import BookingCreate, BookingCreated, BookingStatus
+from app.schemas.booking import (
+    BookingCreate,
+    BookingCreated,
+    BookingLineRead,
+    BookingScheduleRead,
+    BookingStatus,
+)
 from app.services.booking_state import cancel_confirmed_booking
-from app.services.scheduling import SchedulingError, SlotUnavailableError, create_soft_locked_booking
+from app.services.scheduling import (
+    SchedulingError,
+    SlotUnavailableError,
+    create_soft_locked_booking,
+    total_booking_amount,
+)
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -26,10 +37,12 @@ async def create_booking(
             booking = await create_soft_locked_booking(
                 db,
                 service_id=payload.service_id,
+                services=payload.services,
                 staff_id=payload.staff_id,
                 start_time=payload.start_time,
                 customer_name=payload.customer_name,
                 customer_phone=payload.customer_phone,
+                party_size=payload.party_size,
                 lock_minutes=settings.booking_lock_minutes,
             )
     except SlotUnavailableError as exc:
@@ -41,6 +54,12 @@ async def create_booking(
         booking_id=booking.id,
         status=booking.status,
         lock_expires_at=booking.lock_expires_at,
+        start_time=booking.start_time,
+        end_time=booking.end_time,
+        party_size=booking.party_size,
+        total_amount_kes=total_booking_amount(booking.items),
+        items=[BookingLineRead.model_validate(item) for item in booking.items],
+        schedule=[BookingScheduleRead.model_validate(item) for item in booking.schedule_items],
     )
 
 
