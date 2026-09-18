@@ -20,8 +20,6 @@ async def bootstrap_admin(
     payload: AdminBootstrapRequest,
     db: AsyncSession = Depends(get_db),
 ) -> AdminBootstrapResponse:
-    phone = payload.phone or payload.email
-
     async with db.begin():
         existing_admin = await db.execute(select(Staff.id).where(Staff.role == "admin").limit(1))
         if existing_admin.scalar_one_or_none() is not None:
@@ -31,14 +29,14 @@ async def bootstrap_admin(
             )
 
         row = await db.execute(
-            select(Staff).where(or_(Staff.email == payload.email, Staff.phone == phone))
+            select(Staff).where(or_(Staff.email == payload.email, Staff.phone == payload.email))
         )
         staff = row.scalar_one_or_none()
 
         if staff is None:
             staff = Staff(
                 full_name=payload.full_name,
-                phone=phone,
+                phone=payload.email,
                 email=payload.email,
                 role="admin",
                 password_hash=hash_password(payload.password),
@@ -47,7 +45,7 @@ async def bootstrap_admin(
             db.add(staff)
         else:
             staff.full_name = payload.full_name
-            staff.phone = phone
+            staff.phone = payload.email
             staff.email = payload.email
             staff.role = "admin"
             staff.password_hash = hash_password(payload.password)

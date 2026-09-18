@@ -10,7 +10,7 @@ from app.database import async_connect_args, async_database_url
 from app.models.staff import Staff
 
 
-async def seed_admin(*, email: str, password: str, full_name: str, phone: str | None) -> None:
+async def seed_admin(*, email: str, password: str, full_name: str) -> None:
     settings = get_settings()
     engine = create_async_engine(
         async_database_url(settings.database_url),
@@ -20,20 +20,19 @@ async def seed_admin(*, email: str, password: str, full_name: str, phone: str | 
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
     normalized_email = email.strip().lower()
-    normalized_phone = (phone or normalized_email).strip()
 
     async with sessionmaker() as session:
         async with session.begin():
             row = await session.execute(
                 select(Staff).where(
-                    or_(Staff.email == normalized_email, Staff.phone == normalized_phone)
+                    or_(Staff.email == normalized_email, Staff.phone == normalized_email)
                 )
             )
             staff = row.scalar_one_or_none()
             if staff is None:
                 staff = Staff(
                     full_name=full_name.strip(),
-                    phone=normalized_phone,
+                    phone=normalized_email,
                     email=normalized_email,
                     role="admin",
                     password_hash=hash_password(password),
@@ -42,7 +41,7 @@ async def seed_admin(*, email: str, password: str, full_name: str, phone: str | 
                 session.add(staff)
             else:
                 staff.full_name = full_name.strip()
-                staff.phone = normalized_phone
+                staff.phone = normalized_email
                 staff.email = normalized_email
                 staff.role = "admin"
                 staff.password_hash = hash_password(password)
@@ -57,7 +56,6 @@ def main() -> None:
     parser.add_argument("--email", required=True)
     parser.add_argument("--password", required=True)
     parser.add_argument("--full-name", default="Admin")
-    parser.add_argument("--phone")
     args = parser.parse_args()
 
     asyncio.run(
@@ -65,7 +63,6 @@ def main() -> None:
             email=args.email,
             password=args.password,
             full_name=args.full_name,
-            phone=args.phone,
         )
     )
 

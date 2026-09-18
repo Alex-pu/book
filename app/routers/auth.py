@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
@@ -17,13 +17,7 @@ async def login(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> TokenResponse:
-    filters = []
-    if payload.phone:
-        filters.append(Staff.phone == payload.phone)
-    if payload.email:
-        filters.append(Staff.email == payload.email)
-
-    row = await db.execute(select(Staff).where(or_(*filters)))
+    row = await db.execute(select(Staff).where(Staff.email == payload.email))
     staff = row.scalar_one_or_none()
     if staff is None or not staff.is_active or not verify_password(payload.password, staff.password_hash):
         raise HTTPException(
