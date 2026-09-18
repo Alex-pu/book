@@ -16,6 +16,7 @@ class Staff(Base):
     )
     full_name: Mapped[str] = mapped_column(Text, nullable=False)
     phone: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    email: Mapped[str | None] = mapped_column(Text, unique=True)
     role: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'masseuse'"))
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
