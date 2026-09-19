@@ -50,20 +50,20 @@ async def create_service(
     db: AsyncSession = Depends(get_db),
     current_staff: Staff = Depends(require_admin),
 ) -> Service:
-    async with db.begin():
-        service = Service(
-            name=payload.name.strip(),
-            description=payload.description.strip() if payload.description else None,
-            duration_min=payload.duration_min,
-            price_kes=payload.price_kes,
-            capacity_mode=payload.capacity_mode,
-            capacity_limit=payload.capacity_limit,
-            requires_worker=payload.requires_worker,
-            is_active=True,
-        )
-        db.add(service)
-        await db.flush()
-        await db.refresh(service)
+    service = Service(
+        name=payload.name.strip(),
+        description=payload.description.strip() if payload.description else None,
+        duration_min=payload.duration_min,
+        price_kes=payload.price_kes,
+        capacity_mode=payload.capacity_mode,
+        capacity_limit=payload.capacity_limit,
+        requires_worker=payload.requires_worker,
+        is_active=True,
+    )
+    db.add(service)
+    await db.flush()
+    await db.refresh(service)
+    await db.commit()
     return service
 
 
@@ -74,20 +74,20 @@ async def update_service(
     db: AsyncSession = Depends(get_db),
     current_staff: Staff = Depends(require_admin),
 ) -> Service:
-    async with db.begin():
-        service = await db.get(Service, service_id)
-        if service is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
-        service.name = payload.name.strip()
-        service.description = payload.description.strip() if payload.description else None
-        service.duration_min = payload.duration_min
-        service.price_kes = payload.price_kes
-        service.capacity_mode = payload.capacity_mode
-        service.capacity_limit = payload.capacity_limit
-        service.requires_worker = payload.requires_worker
-        service.is_active = payload.is_active
-        await db.flush()
-        await db.refresh(service)
+    service = await db.get(Service, service_id)
+    if service is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+    service.name = payload.name.strip()
+    service.description = payload.description.strip() if payload.description else None
+    service.duration_min = payload.duration_min
+    service.price_kes = payload.price_kes
+    service.capacity_mode = payload.capacity_mode
+    service.capacity_limit = payload.capacity_limit
+    service.requires_worker = payload.requires_worker
+    service.is_active = payload.is_active
+    await db.flush()
+    await db.refresh(service)
+    await db.commit()
     return service
 
 
