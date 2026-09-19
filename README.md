@@ -94,6 +94,32 @@ bash scripts/pull-on-vps.sh spa-booking
 
 The script fast-forward pulls `main`, updates the virtualenv, runs Alembic migrations, and restarts the supplied systemd service. Omit `spa-booking` when the app is managed another way.
 
+### LAN access
+
+To serve the app to other devices on the same network:
+
+```bash
+bash scripts/run-lan.sh
+```
+
+Open `http://<server-lan-ip>:8010/booking-console` from a LAN device. Allow TCP port `8010` through the server firewall if needed. The app still uses the `DATABASE_URL` from `.env`.
+
+### Daily PostgreSQL backups
+
+The backup script uses `pg_dump`, stores compressed custom-format dumps, and removes dumps older than 30 days:
+
+```bash
+chmod +x scripts/backup-postgres.sh
+set -a; source .env; set +a
+scripts/backup-postgres.sh
+```
+
+Schedule it daily with cron:
+
+```cron
+0 2 * * * cd /home/alec/apps/spa-booking && set -a && . .env && set +a && /home/alec/apps/spa-booking/scripts/backup-postgres.sh >> /home/alec/backups/spa-booking-backup.log 2>&1
+```
+
 ### Payment fallback
 
 Each booking displays the Daraja PayBill shortcode and a booking account reference. If STK does not arrive, the guest can pay using those values. The widget can query the callback result using the phone number and account reference; it never marks a payment as paid itself. Until Daraja's callback is recorded, it shows that the guest should try again later. Confirmed guests can search with their phone number and download a PDF ticket for reception.

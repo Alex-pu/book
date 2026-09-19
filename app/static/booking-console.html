@@ -65,6 +65,9 @@
       box-shadow: var(--shadow);
       min-width: 0;
     }
+    #payment-panel { order: 1; }
+    #booking-panel { order: 2; }
+    #services-panel { order: 3; }
     .span-3 { grid-column: span 3; }
     .span-4 { grid-column: span 4; }
     .span-5 { grid-column: span 5; }
@@ -305,7 +308,7 @@
       </div>
     </section>
 
-    <section class="span-8">
+    <section id="services-panel" class="span-8">
       <div class="head">
         <h2>Services</h2>
         <button class="secondary" data-action="loadServices">Refresh</button>
@@ -332,7 +335,7 @@
       </div>
     </section>
 
-    <section class="span-5">
+    <section id="booking-panel" class="span-5">
       <div class="head">
         <h2>Booking</h2>
         <span id="bookingState" class="pill">No booking</span>
@@ -354,7 +357,7 @@
       </div>
     </section>
 
-    <section class="span-7">
+    <section id="payment-panel" class="span-7">
       <div class="head">
         <h2>Payment</h2>
         <span class="pill warn">STK</span>

@@ -197,7 +197,8 @@ async def reschedule_booking(
             if booking is None:
                 raise SlotUnavailableError("Booking not found")
             await reschedule_confirmed_booking(db, booking=booking, start_time=payload.start_time)
-        return admin_booking_read(booking)
+            response = admin_booking_read(booking)
+        return response
     except SlotUnavailableError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except SchedulingError as exc:
