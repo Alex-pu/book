@@ -598,11 +598,16 @@
       state.token = data.access_token;
       localStorage.setItem("spaBookingToken", state.token);
       setAuthState();
+      await loadServices();
+      await loadAllBookings();
+      await loadPayments();
+      await loadStaff();
     }
 
     async function loadServices() {
-      state.services = await request("/services");
+      state.services = await request("/admin/services", { auth: true });
       renderServices();
+      setOutput("Services loaded", `${state.services.length} service(s) found`);
     }
 
     function newService() {
@@ -629,12 +634,15 @@
         requires_worker: $("serviceRequiresWorker").checked,
         is_active: $("serviceActive").checked
       };
-      await request(id ? `/admin/services/${id}` : "/admin/services", {
+      const saved = await request(id ? `/admin/services/${id}` : "/admin/services", {
         method: id ? "PATCH" : "POST",
         auth: true,
         body
       });
       await loadServices();
+      $("serviceEditor").value = saved.id;
+      syncServiceEditor();
+      setOutput("Service saved", `${saved.name} is now in the service catalog`);
     }
 
     async function saveCapacityMode() {
@@ -838,7 +846,10 @@
     $("capacityStart").value = localDateTime(open);
     $("capacityEnd").value = localDateTime(close);
     setAuthState();
-    loadServices().catch((error) => setOutput("Error", { detail: error.message }));
+    setAuthState();
+    if (state.token) {
+      loadServices().catch((error) => setOutput("Error", { detail: error.message }));
+    }
   </script>
 </body>
 </html>

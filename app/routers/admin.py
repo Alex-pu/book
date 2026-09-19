@@ -35,6 +35,15 @@ from app.services.scheduling import SchedulingError, SlotUnavailableError
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+@router.get("/services", response_model=list[ServiceRead])
+async def admin_services(
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_admin),
+) -> list[Service]:
+    rows = await db.execute(select(Service).order_by(Service.name, Service.created_at))
+    return list(rows.scalars())
+
+
 @router.post("/services", response_model=ServiceRead, status_code=status.HTTP_201_CREATED)
 async def create_service(
     payload: ServiceCreate,
