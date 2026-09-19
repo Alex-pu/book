@@ -83,13 +83,18 @@
           <strong>Find a booking</strong>
           <span>Enter the phone number used during booking to find confirmed appointments.</span>
           <input id="searchPhone" type="tel" placeholder="0712345678" style="display:block;width:100%;margin-top:12px;padding:13px 14px;border:1px solid var(--line)">
-          <input id="searchReference" type="text" placeholder="Account reference, e.g. SPAABC123456" style="display:block;width:100%;margin-top:8px;padding:13px 14px;border:1px solid var(--line)">
+          <input id="searchReference" type="hidden">
           <button id="searchBookings" class="primary" type="button" style="margin-top:12px">Search booking</button>
           <div id="searchResults" class="status"></div>
         </div>
       </div>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <strong>Need help with a booking or payment?</strong>
+    <span>Call <a href="tel:070481341">070481341</a> or <a href="tel:0714675050">0714675050</a></span>
+  </footer>
 
   <script>
     const el = (id) => document.getElementById(id);
@@ -339,11 +344,7 @@
     async function searchBookings() {
       const phone = el("searchPhone").value.trim();
       if (!phone) return;
-      const reference = el("searchReference").value.trim();
-      const path = reference
-        ? `/bookings/lookup?account_reference=${encodeURIComponent(reference)}&phone=${encodeURIComponent(phone)}`
-        : `/bookings/search?phone=${encodeURIComponent(phone)}`;
-      const bookings = await request(path);
+      const bookings = await request(`/bookings/search?phone=${encodeURIComponent(phone)}`);
       el("searchResults").innerHTML = bookings.length
         ? bookings.map((booking) => booking.status === "confirmed"
           ? `<div style="margin-top:10px">${booking.id} · ${formatDate(booking.start_time.slice(0, 10))} · ${new Date(booking.start_time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · <a href="${apiUrl(`/bookings/${booking.id}/ticket?phone=${encodeURIComponent(phone)}`)}" target="_blank" rel="noopener">Download ticket</a></div>`

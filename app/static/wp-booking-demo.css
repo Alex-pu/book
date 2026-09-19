@@ -139,6 +139,21 @@ h2 { margin: 0 0 22px; font-size: 30px; font-weight: 400; }
 .booking-summary strong { display: block; margin-bottom: 5px; font-size: 20px; font-weight: 400; }
 .booking-summary span { color: var(--muted); font: 13px Arial, sans-serif; }
 
+.site-footer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 22px 20px 34px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font: 13px Arial, sans-serif;
+  text-align: center;
+}
+
+.site-footer strong { color: var(--ink); }
+.site-footer a { color: var(--accent-dark); font-weight: 700; }
+
 @media (max-width: 760px) {
   .brand { display: block; }
   .brand-note { display: block; margin-top: 8px; }
