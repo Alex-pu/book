@@ -23,7 +23,9 @@ from app.schemas.catalog import (
     ServiceCapacitySettingsUpdate,
     ServiceCapacityWindowCreate,
     ServiceCapacityWindowRead,
+    ServiceCreate,
     ServiceRead,
+    ServiceUpdate,
 )
 from app.schemas.payment import DisbursementRead, PaymentLedgerItem
 from app.services.disbursements import create_disbursement_batch, list_disbursements, payment_ledger
@@ -31,6 +33,53 @@ from app.services.admin_bookings import reschedule_confirmed_booking
 from app.services.scheduling import SchedulingError, SlotUnavailableError
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.post("/services", response_model=ServiceRead, status_code=status.HTTP_201_CREATED)
+async def create_service(
+    payload: ServiceCreate,
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_admin),
+) -> Service:
+    async with db.begin():
+        service = Service(
+            name=payload.name.strip(),
+            description=payload.description.strip() if payload.description else None,
+            duration_min=payload.duration_min,
+            price_kes=payload.price_kes,
+            capacity_mode=payload.capacity_mode,
+            capacity_limit=payload.capacity_limit,
+            requires_worker=payload.requires_worker,
+            is_active=True,
+        )
+        db.add(service)
+        await db.flush()
+        await db.refresh(service)
+    return service
+
+
+@router.patch("/services/{service_id}", response_model=ServiceRead)
+async def update_service(
+    service_id: uuid.UUID,
+    payload: ServiceUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_admin),
+) -> Service:
+    async with db.begin():
+        service = await db.get(Service, service_id)
+        if service is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+        service.name = payload.name.strip()
+        service.description = payload.description.strip() if payload.description else None
+        service.duration_min = payload.duration_min
+        service.price_kes = payload.price_kes
+        service.capacity_mode = payload.capacity_mode
+        service.capacity_limit = payload.capacity_limit
+        service.requires_worker = payload.requires_worker
+        service.is_active = payload.is_active
+        await db.flush()
+        await db.refresh(service)
+    return service
 
 
 def admin_booking_read(booking: Booking) -> AdminBookingRead:
@@ -43,6 +92,7 @@ def admin_booking_read(booking: Booking) -> AdminBookingRead:
         end_time=booking.end_time,
         status=booking.status,
         service_ids=[item.service_id for item in booking.items],
+        service_names=[item.service.name for item in booking.items],
         payments=booking.payments,
     )
 
@@ -57,7 +107,7 @@ async def all_bookings(
     stmt = (
         select(Booking)
         .options(
-            selectinload(Booking.items),
+            selectinload(Booking.items).selectinload(BookingItem.service),
             selectinload(Booking.payments),
         )
         .order_by(Booking.start_time)

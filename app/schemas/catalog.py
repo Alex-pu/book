@@ -26,6 +26,27 @@ class ServiceCapacitySettingsUpdate(BaseModel):
     requires_worker: bool | None = None
 
 
+class ServiceCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+    duration_min: int = Field(ge=5, le=1440)
+    price_kes: Decimal = Field(gt=0, le=1000000)
+    capacity_mode: str = Field(default="worker", pattern="^(worker|shared|private)$")
+    capacity_limit: int = Field(default=1, ge=1, le=500)
+    requires_worker: bool = True
+
+
+class ServiceUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+    duration_min: int = Field(ge=5, le=1440)
+    price_kes: Decimal = Field(gt=0, le=1000000)
+    capacity_mode: str = Field(default="worker", pattern="^(worker|shared|private)$")
+    capacity_limit: int = Field(default=1, ge=1, le=500)
+    requires_worker: bool = True
+    is_active: bool = True
+
+
 class ServiceCapacityWindowCreate(BaseModel):
     service_id: uuid.UUID
     start_time: datetime

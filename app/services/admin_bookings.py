@@ -12,6 +12,7 @@ from app.services.scheduling import (
     get_service_or_raise,
     now_utc,
     schedule_service_units,
+    available_capacity,
 )
 
 
@@ -25,6 +26,8 @@ async def reschedule_confirmed_booking(
         raise SlotUnavailableError("Only confirmed bookings can be rescheduled")
 
     start = ensure_aware(start_time)
+    if start <= now_utc():
+        raise SchedulingError("New start time must be in the future")
     lines = [(item.service, item.quantity) for item in booking.items]
     if not lines:
         raise SchedulingError("Booking has no services to reschedule")
@@ -36,6 +39,19 @@ async def reschedule_confirmed_booking(
     schedules: list[BookingScheduleItem] = []
     cursor = start
     for service, quantity in lines:
+        end = cursor + timedelta(minutes=service.duration_min)
+        capacity = await available_capacity(
+            db,
+            service=service,
+            start_time=cursor,
+            end_time=end,
+            at_time=now_utc() - timedelta(minutes=1),
+            exclude_booking_id=booking.id,
+        )
+        if capacity < quantity:
+            raise SlotUnavailableError(
+                f"The requested time is unavailable for {service.name}; choose another time"
+            )
         service_schedule = await schedule_service_units(
             db,
             service=service,
@@ -44,6 +60,10 @@ async def reschedule_confirmed_booking(
             at_time=now_utc() - timedelta(minutes=1),
             exclude_booking_id=booking.id,
         )
+        if service_schedule[0].start_time != cursor:
+            raise SlotUnavailableError(
+                f"The requested time is unavailable for {service.name}; choose another time"
+            )
         schedules.extend(service_schedule)
         cursor = max(item.end_time for item in service_schedule)
 

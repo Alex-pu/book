@@ -312,6 +312,23 @@
       </div>
       <div class="body">
         <div id="serviceLines" class="services"></div>
+        <div class="grid-2">
+          <label>Service to edit <select id="serviceEditor"></select></label>
+          <label>Name <input id="serviceName" placeholder="e.g. Facial"></label>
+          <label>Description <input id="serviceDescription"></label>
+          <label>Duration (minutes) <input id="serviceDuration" type="number" min="5" max="1440" value="60"></label>
+          <label>Price (KES) <input id="servicePrice" type="number" min="0.01" step="0.01" value="1.00"></label>
+          <label>Capacity mode
+            <select id="serviceMode"><option value="worker">worker</option><option value="shared">shared</option><option value="private">private</option></select>
+          </label>
+          <label>Worker/capacity limit <input id="serviceLimit" type="number" min="1" max="500" value="1"></label>
+          <label class="check"><input id="serviceRequiresWorker" type="checkbox"> Requires attendant</label>
+          <label class="check"><input id="serviceActive" type="checkbox" checked> Active</label>
+        </div>
+        <div class="row">
+          <button data-action="newService">New service</button>
+          <button class="dark" data-action="saveService">Save service</button>
+        </div>
       </div>
     </section>
 
@@ -521,9 +538,24 @@
       `).join("");
 
       const options = state.services.map((service) => `<option value="${service.id}">${service.name}</option>`).join("");
+      $("serviceEditor").innerHTML = options;
       $("capacityService").innerHTML = options;
       $("availabilityService").innerHTML = options;
       syncCapacityFields();
+      syncServiceEditor();
+    }
+
+    function syncServiceEditor() {
+      const service = state.services.find((item) => item.id === $("serviceEditor").value);
+      if (!service) return;
+      $("serviceName").value = service.name;
+      $("serviceDescription").value = service.description || "";
+      $("serviceDuration").value = service.duration_min;
+      $("servicePrice").value = service.price_kes;
+      $("serviceMode").value = service.capacity_mode;
+      $("serviceLimit").value = service.capacity_limit;
+      $("serviceRequiresWorker").checked = service.requires_worker;
+      $("serviceActive").checked = service.is_active;
     }
 
     function syncCapacityFields() {
@@ -573,6 +605,38 @@
       renderServices();
     }
 
+    function newService() {
+      $("serviceEditor").value = "";
+      $("serviceName").value = "";
+      $("serviceDescription").value = "";
+      $("serviceDuration").value = 60;
+      $("servicePrice").value = "1.00";
+      $("serviceMode").value = "worker";
+      $("serviceLimit").value = 1;
+      $("serviceRequiresWorker").checked = true;
+      $("serviceActive").checked = true;
+    }
+
+    async function saveService() {
+      const id = $("serviceEditor").value;
+      const body = {
+        name: $("serviceName").value,
+        description: $("serviceDescription").value,
+        duration_min: Number($("serviceDuration").value),
+        price_kes: Number($("servicePrice").value),
+        capacity_mode: $("serviceMode").value,
+        capacity_limit: Number($("serviceLimit").value),
+        requires_worker: $("serviceRequiresWorker").checked,
+        is_active: $("serviceActive").checked
+      };
+      await request(id ? `/admin/services/${id}` : "/admin/services", {
+        method: id ? "PATCH" : "POST",
+        auth: true,
+        body
+      });
+      await loadServices();
+    }
+
     async function saveCapacityMode() {
       const serviceId = $("capacityService").value;
       await request(`/admin/services/${serviceId}/capacity`, {
@@ -617,12 +681,13 @@
     async function loadAllBookings() {
       const bookings = await request("/admin/bookings", { auth: true });
       const selector = $("confirmedBooking");
-      selector.innerHTML = bookings.map((booking) =>
+      selector.innerHTML = bookings.filter((booking) => booking.status === "confirmed").map((booking) =>
         `<option value="${booking.id}">${booking.customer_name} · ${new Date(booking.start_time).toLocaleString()}</option>`
       ).join("");
       renderTable("confirmedBookingsTable", bookings, [
         { label: "Guest", value: (booking) => booking.customer_name },
         { label: "Phone", value: (booking) => booking.customer_phone },
+        { label: "Services", value: (booking) => booking.service_names.join(", ") },
         { label: "Start", value: (booking) => new Date(booking.start_time).toLocaleString() },
         { label: "End", value: (booking) => new Date(booking.end_time).toLocaleTimeString() },
         { label: "Payment", value: (booking) => booking.payments.map((payment) => `${payment.status}${payment.mpesa_receipt_number ? ` · ${payment.mpesa_receipt_number}` : ""}`).join("<br>") }
@@ -673,7 +738,7 @@
         auth: true,
         body: { start_time: isoFromLocal(startTime) }
       });
-      await loadConfirmedBookings();
+      await loadAllBookings();
     }
 
     async function createBooking() {
@@ -737,6 +802,8 @@
       loadStaff,
       createStaff,
       rescheduleBooking,
+      newService,
+      saveService,
       createBooking,
       bookingStatus,
       stkPush,
@@ -757,6 +824,7 @@
       }
     });
     $("capacityService").addEventListener("change", syncCapacityFields);
+    $("serviceEditor").addEventListener("change", syncServiceEditor);
 
     const now = new Date();
     const nextHour = new Date(now.getTime() + 60 * 60 * 1000);

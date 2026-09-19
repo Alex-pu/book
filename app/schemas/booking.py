@@ -90,6 +90,7 @@ class AdminBookingRead(BaseModel):
     end_time: datetime
     status: str
     service_ids: list[uuid.UUID]
+    service_names: list[str]
     payments: list[AdminBookingPaymentRead]
 
 
