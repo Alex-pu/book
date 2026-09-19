@@ -6,13 +6,12 @@ from app.core.deps import get_current_staff
 from app.database import get_db
 from app.models.staff import Staff
 from app.schemas.payment import (
+    CallbackPaymentStatus,
     DarajaAcceptedResponse,
-    ManualPaymentConfirmation,
     StkPushQueryResponse,
     StkPushRequest,
     StkPushResponse,
 )
-from app.services.booking_state import manually_confirm_payment
 from app.services.daraja import (
     DarajaClient,
     DarajaError,
@@ -62,25 +61,62 @@ async def payment_callback(
     return DarajaAcceptedResponse()
 
 
-@router.post("/manual-confirm", response_model=StkPushResponse)
-async def manual_confirm(
-    payload: ManualPaymentConfirmation,
+@router.get("/callback-status", response_model=CallbackPaymentStatus)
+async def callback_status(
+    account_reference: str,
+    phone: str,
     db: AsyncSession = Depends(get_db),
-    current_staff: Staff = Depends(get_current_staff),
-) -> StkPushResponse:
-    try:
-        async with db.begin():
-            payment = await manually_confirm_payment(
-                db,
-                booking_id=payload.booking_id,
-                receipt_number=payload.receipt_number,
-            )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+) -> CallbackPaymentStatus:
+    from sqlalchemy import select
+    from app.models.booking import Booking
+    from app.models.payment import Payment
+    from app.services.daraja import booking_account_reference
 
-    return StkPushResponse(
-        payment_id=payment.id,
-        checkout_request_id=payment.checkout_request_id or payload.receipt_number,
+    bookings = (
+        await db.execute(
+            select(Booking)
+            .where(Booking.customer_phone == phone.strip())
+            .order_by(Booking.created_at.desc())
+            .limit(20)
+        )
+    ).scalars()
+    booking = next(
+        (
+            item
+            for item in bookings
+            if booking_account_reference(item.id).lower() == account_reference.strip().lower()
+        ),
+        None,
+    )
+    if booking is None:
+        return CallbackPaymentStatus(
+            booking_id=None,
+            booking_status=None,
+            payment_status=None,
+            receipt_number=None,
+            confirmed=False,
+            message="Payment callback not found. Please try again later.",
+        )
+    payment = (
+        await db.execute(
+            select(Payment)
+            .where(Payment.booking_id == booking.id)
+            .order_by(Payment.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    confirmed = bool(payment and payment.status == "success" and booking.status == "confirmed")
+    return CallbackPaymentStatus(
+        booking_id=booking.id,
+        booking_status=booking.status,
+        payment_status=payment.status if payment else None,
+        receipt_number=payment.mpesa_receipt_number if payment else None,
+        confirmed=confirmed,
+        message=(
+            "Payment confirmed by callback."
+            if confirmed
+            else "Payment callback not received yet. Please try again later."
+        ),
     )
 
 

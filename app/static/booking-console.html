@@ -348,11 +348,9 @@
           <label>Payment ID <input id="paymentId" class="mono"></label>
           <label>Checkout Request ID <input id="checkoutRequestId" class="mono"></label>
         </div>
-        <label>M-Pesa Receipt / Account Number <input id="receiptNumber" class="mono" placeholder="e.g. TIS123ABC"></label>
         <div class="row">
           <button class="danger" data-action="stkPush">Send STK</button>
           <button class="secondary" data-action="stkQuery">Query</button>
-          <button class="dark" data-action="manualConfirm">Confirm Paid</button>
         </div>
       </div>
     </section>
@@ -614,19 +612,6 @@
       });
     }
 
-    async function manualConfirm() {
-      const data = await request("/payments/manual-confirm", {
-        method: "POST",
-        auth: true,
-        body: {
-          booking_id: $("bookingId").value,
-          receipt_number: $("receiptNumber").value
-        }
-      });
-      setOutput("Payment confirmed", data);
-      await bookingStatus();
-    }
-
     const actions = {
       health,
       docs: () => { window.location.href = "/docs"; },
@@ -645,7 +630,6 @@
       bookingStatus,
       stkPush,
       stkQuery,
-      manualConfirm,
       clearOutput: () => setOutput("Idle", "")
     };
 

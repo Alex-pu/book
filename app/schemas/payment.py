@@ -9,16 +9,20 @@ class StkPushRequest(BaseModel):
     booking_id: uuid.UUID
 
 
-class ManualPaymentConfirmation(BaseModel):
-    booking_id: uuid.UUID
-    receipt_number: str = Field(min_length=5, max_length=40)
-
-
 class StkPushResponse(BaseModel):
     payment_id: uuid.UUID
     checkout_request_id: str
     paybill_shortcode: str | None = None
     account_reference: str | None = None
+
+
+class CallbackPaymentStatus(BaseModel):
+    booking_id: uuid.UUID | None
+    booking_status: str | None
+    payment_status: str | None
+    receipt_number: str | None
+    confirmed: bool
+    message: str
 
 
 class DarajaCallbackResponse(BaseModel):

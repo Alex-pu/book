@@ -96,4 +96,4 @@ The script fast-forward pulls `main`, updates the virtualenv, runs Alembic migra
 
 ### Payment fallback
 
-Each booking displays the Daraja PayBill shortcode and a booking account reference. If STK does not arrive, the guest can pay using those values. Reception should verify the M-Pesa receipt and use **Confirm Paid** in the authenticated booking console. Confirmed guests can search with their phone number and download a PDF ticket for reception.
+Each booking displays the Daraja PayBill shortcode and a booking account reference. If STK does not arrive, the guest can pay using those values. The widget can query the callback result using the phone number and account reference; it never marks a payment as paid itself. Until Daraja's callback is recorded, it shows that the guest should try again later. Confirmed guests can search with their phone number and download a PDF ticket for reception.

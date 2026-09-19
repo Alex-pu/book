@@ -77,6 +77,7 @@
           <button id="payNow" class="primary" type="button" style="margin-top:10px" hidden>Pay now</button>
           <span id="paymentStatus" class="status"></span>
           <a id="ticketLink" class="primary" hidden target="_blank" rel="noopener">Download ticket</a>
+          <button id="checkCallback" class="primary" type="button" style="margin-top:10px">Check payment confirmation</button>
         </div>
         <div class="booking-summary">
           <strong>Find a booking</strong>
@@ -97,6 +98,7 @@
       slots: [],
       selectedSlot: null,
       bookingId: null,
+      accountReference: null,
       lockExpiresAt: null,
       timer: null,
       statusTimer: null
@@ -230,6 +232,7 @@
           })
         });
         state.bookingId = data.booking_id;
+        state.accountReference = data.account_reference;
         state.lockExpiresAt = data.lock_expires_at;
         el("paybillInstructions").textContent = `Fallback payment: PayBill ${data.paybill_shortcode}, account ${data.account_reference}. Keep the M-Pesa receipt. Use Pay now first when possible.`;
         el("bookNow").hidden = true;
@@ -307,6 +310,25 @@
       }
     }
 
+    async function checkCallback() {
+      const phone = el("customerPhone").value.trim();
+      const reference = el("searchReference").value.trim() || state.accountReference;
+      if (!phone || !reference) {
+        setStatus("Enter the phone number and account reference used for payment.", "error");
+        return;
+      }
+      const query = new URLSearchParams({ account_reference: reference, phone });
+      const result = await request(`/payments/callback-status?${query}`);
+      el("paymentStatus").textContent = result.message;
+      if (result.confirmed) {
+        state.bookingId = result.booking_id;
+        showTicketLink(result.booking_id, phone);
+        setStatus("Payment received. Your appointment is confirmed.", "success");
+      } else {
+        setStatus("The callback has not arrived yet. Please try again later.");
+      }
+    }
+
     function showTicketLink(bookingId = state.bookingId, phone = el("customerPhone").value.trim()) {
       if (!bookingId || !phone) return;
       const link = el("ticketLink");
@@ -333,6 +355,7 @@
     el("loadSlots").addEventListener("click", loadSlots);
     el("bookNow").addEventListener("click", createBooking);
     el("payNow").addEventListener("click", startPayment);
+    el("checkCallback").addEventListener("click", checkCallback);
     el("searchBookings").addEventListener("click", searchBookings);
     el("service").addEventListener("change", loadSlots);
     el("date").addEventListener("change", loadSlots);
