@@ -1,7 +1,11 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -30,7 +34,10 @@ class Settings(BaseSettings):
     platform_fee_percent: float = Field(default=5.0, alias="PLATFORM_FEE_PERCENT")
     booking_lock_minutes: int = Field(default=5, alias="BOOKING_LOCK_MINUTES")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=PROJECT_ROOT / ".env",
+        env_file_encoding="utf-8",
+    )
 
 
 @lru_cache

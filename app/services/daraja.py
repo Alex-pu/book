@@ -21,6 +21,10 @@ from app.services.sms import booking_confirmed_message, queue_notification
 SUCCESS_RESULT_CODE = 0
 
 
+def booking_account_reference(booking_id: uuid.UUID) -> str:
+    return f"SPA{booking_id.hex[:9]}"
+
+
 class DarajaError(RuntimeError):
     pass
 
@@ -147,7 +151,7 @@ class DarajaClient:
             "PartyB": self.settings.daraja_shortcode,
             "PhoneNumber": phone,
             "CallBackURL": callback_url,
-            "AccountReference": f"SPA{booking_id.hex[:9]}",
+            "AccountReference": booking_account_reference(booking_id),
             "TransactionDesc": "Spa booking",
         }
 

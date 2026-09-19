@@ -7,11 +7,19 @@ from app.database import get_db
 from app.models.staff import Staff
 from app.schemas.payment import (
     DarajaAcceptedResponse,
+    ManualPaymentConfirmation,
     StkPushQueryResponse,
     StkPushRequest,
     StkPushResponse,
 )
-from app.services.daraja import DarajaClient, DarajaError, handle_stk_callback, initiate_booking_payment
+from app.services.booking_state import manually_confirm_payment
+from app.services.daraja import (
+    DarajaClient,
+    DarajaError,
+    booking_account_reference,
+    handle_stk_callback,
+    initiate_booking_payment,
+)
 from app.services.scheduling import SlotUnavailableError
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -38,6 +46,8 @@ async def stk_push(
     return StkPushResponse(
         payment_id=payment.id,
         checkout_request_id=payment.checkout_request_id,
+        paybill_shortcode=settings.daraja_shortcode,
+        account_reference=booking_account_reference(payload.booking_id),
     )
 
 
@@ -50,6 +60,28 @@ async def payment_callback(
         await handle_stk_callback(db, payload)
 
     return DarajaAcceptedResponse()
+
+
+@router.post("/manual-confirm", response_model=StkPushResponse)
+async def manual_confirm(
+    payload: ManualPaymentConfirmation,
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(get_current_staff),
+) -> StkPushResponse:
+    try:
+        async with db.begin():
+            payment = await manually_confirm_payment(
+                db,
+                booking_id=payload.booking_id,
+                receipt_number=payload.receipt_number,
+            )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return StkPushResponse(
+        payment_id=payment.id,
+        checkout_request_id=payment.checkout_request_id or payload.receipt_number,
+    )
 
 
 @router.post("/stk-push/{checkout_request_id}/query", response_model=StkPushQueryResponse)

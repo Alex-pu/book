@@ -72,9 +72,19 @@
         <div id="bookingSummary" class="booking-summary" hidden>
           <strong id="selectedLabel"></strong>
           <span id="selectedDetails"></span>
+          <span id="paybillInstructions"></span>
           <button id="bookNow" class="primary" type="button" style="margin-top:18px">Hold this time</button>
           <button id="payNow" class="primary" type="button" style="margin-top:10px" hidden>Pay now</button>
           <span id="paymentStatus" class="status"></span>
+          <a id="ticketLink" class="primary" hidden target="_blank" rel="noopener">Download ticket</a>
+        </div>
+        <div class="booking-summary">
+          <strong>Find a booking</strong>
+          <span>Enter the phone number used during booking to find confirmed appointments.</span>
+          <input id="searchPhone" type="tel" placeholder="0712345678" style="display:block;width:100%;margin-top:12px;padding:13px 14px;border:1px solid var(--line)">
+          <input id="searchReference" type="text" placeholder="Account reference, e.g. SPAABC123456" style="display:block;width:100%;margin-top:8px;padding:13px 14px;border:1px solid var(--line)">
+          <button id="searchBookings" class="primary" type="button" style="margin-top:12px">Search booking</button>
+          <div id="searchResults" class="status"></div>
         </div>
       </div>
     </section>
@@ -221,6 +231,7 @@
         });
         state.bookingId = data.booking_id;
         state.lockExpiresAt = data.lock_expires_at;
+        el("paybillInstructions").textContent = `Fallback payment: PayBill ${data.paybill_shortcode}, account ${data.account_reference}. Keep the M-Pesa receipt. Use Pay now first when possible.`;
         el("bookNow").hidden = true;
         el("payNow").hidden = false;
         startLockCountdown();
@@ -260,6 +271,7 @@
             clearInterval(state.timer);
             el("payNow").hidden = true;
             el("paymentStatus").textContent = "Payment confirmed. Your booking is permanent.";
+            showTicketLink();
             setStatus("Payment received. Your appointment is confirmed.", "success");
           } else if (["expired", "cancelled"].includes(booking.status)) {
             clearInterval(state.statusTimer);
@@ -295,10 +307,33 @@
       }
     }
 
+    function showTicketLink(bookingId = state.bookingId, phone = el("customerPhone").value.trim()) {
+      if (!bookingId || !phone) return;
+      const link = el("ticketLink");
+      link.href = apiUrl(`/bookings/${bookingId}/ticket?phone=${encodeURIComponent(phone)}`);
+      link.hidden = false;
+    }
+
+    async function searchBookings() {
+      const phone = el("searchPhone").value.trim();
+      if (!phone) return;
+      const reference = el("searchReference").value.trim();
+      const path = reference
+        ? `/bookings/lookup?account_reference=${encodeURIComponent(reference)}&phone=${encodeURIComponent(phone)}`
+        : `/bookings/search?phone=${encodeURIComponent(phone)}`;
+      const bookings = await request(path);
+      el("searchResults").innerHTML = bookings.length
+        ? bookings.map((booking) => booking.status === "confirmed"
+          ? `<div style="margin-top:10px">${booking.id} · ${formatDate(booking.start_time.slice(0, 10))} · ${new Date(booking.start_time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · <a href="${apiUrl(`/bookings/${booking.id}/ticket?phone=${encodeURIComponent(phone)}`)}" target="_blank" rel="noopener">Download ticket</a></div>`
+          : `<div style="margin-top:10px">${booking.id} · ${booking.status}</div>`).join("")
+        : "No bookings found for that phone number.";
+    }
+
     el("date").value = localDateString(new Date());
     el("loadSlots").addEventListener("click", loadSlots);
     el("bookNow").addEventListener("click", createBooking);
     el("payNow").addEventListener("click", startPayment);
+    el("searchBookings").addEventListener("click", searchBookings);
     el("service").addEventListener("change", loadSlots);
     el("date").addEventListener("change", loadSlots);
     loadServices().catch((error) => setStatus(error.message, "error"));

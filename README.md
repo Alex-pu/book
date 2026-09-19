@@ -93,3 +93,7 @@ bash scripts/pull-on-vps.sh spa-booking
 ```
 
 The script fast-forward pulls `main`, updates the virtualenv, runs Alembic migrations, and restarts the supplied systemd service. Omit `spa-booking` when the app is managed another way.
+
+### Payment fallback
+
+Each booking displays the Daraja PayBill shortcode and a booking account reference. If STK does not arrive, the guest can pay using those values. Reception should verify the M-Pesa receipt and use **Confirm Paid** in the authenticated booking console. Confirmed guests can search with their phone number and download a PDF ticket for reception.

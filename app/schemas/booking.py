@@ -52,6 +52,8 @@ class BookingCreated(BaseModel):
     end_time: datetime
     party_size: int
     total_amount_kes: Decimal
+    paybill_shortcode: str
+    account_reference: str
     items: list[BookingLineRead]
     schedule: list[BookingScheduleRead]
 

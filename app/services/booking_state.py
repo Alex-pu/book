@@ -3,9 +3,59 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.booking import Booking
 from app.models.payment import Payment
+from app.services.sms import booking_confirmed_message, queue_notification
 from app.services.scheduling import PENDING_PAYMENT, now_utc
 
 FINAL_PAYMENT_STATUSES = {"success", "failed", "cancelled"}
+
+
+async def manually_confirm_payment(
+    db: AsyncSession,
+    *,
+    booking_id,
+    receipt_number: str,
+) -> Payment:
+    row = await db.execute(
+        select(Payment, Booking)
+        .join(Booking, Booking.id == Payment.booking_id)
+        .where(Payment.booking_id == booking_id)
+        .order_by(Payment.created_at.desc())
+        .with_for_update()
+    )
+    result = row.first()
+    if result is None:
+        raise ValueError("No payment attempt found for this booking")
+
+    payment, booking = result
+    if payment.status == "success":
+        return payment
+    duplicate = await db.execute(
+        select(Payment.id).where(
+            Payment.mpesa_receipt_number == receipt_number.strip().upper(),
+            Payment.id != payment.id,
+        )
+    )
+    if duplicate.scalar_one_or_none() is not None:
+        raise ValueError("This M-Pesa receipt has already been used")
+    if booking.status not in {PENDING_PAYMENT, "expired"}:
+        raise ValueError("Booking is not awaiting payment confirmation")
+
+    payment.status = "success"
+    payment.mpesa_receipt_number = receipt_number.strip().upper()
+    payment.completed_at = now_utc()
+    booking.status = "confirmed"
+    booking.lock_expires_at = None
+    booking.updated_at = now_utc()
+    message = booking_confirmed_message(booking)
+    await queue_notification(
+        db,
+        booking_id=booking.id,
+        phone=message.phone,
+        template=message.template,
+        body=message.body,
+    )
+    await db.flush()
+    return payment
 
 
 async def expire_pending_payment_locks(db: AsyncSession) -> int:
