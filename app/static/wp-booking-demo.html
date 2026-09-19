@@ -82,7 +82,15 @@
 
   <script>
     const el = (id) => document.getElementById(id);
-    const state = { services: [], slots: [], selectedSlot: null, bookingId: null, lockExpiresAt: null, timer: null };
+    const state = {
+      services: [],
+      slots: [],
+      selectedSlot: null,
+      bookingId: null,
+      lockExpiresAt: null,
+      timer: null,
+      statusTimer: null
+    };
 
     function apiUrl(path) {
       return `${el("apiBase").value.replace(/\/$/, "")}${path}`;
@@ -241,6 +249,33 @@
       state.timer = setInterval(update, 1000);
     }
 
+    function startPaymentStatusPolling() {
+      clearInterval(state.statusTimer);
+      const check = async () => {
+        if (!state.bookingId) return;
+        try {
+          const booking = await request(`/bookings/${state.bookingId}/status`);
+          if (booking.status === "confirmed") {
+            clearInterval(state.statusTimer);
+            clearInterval(state.timer);
+            el("payNow").hidden = true;
+            el("paymentStatus").textContent = "Payment confirmed. Your booking is permanent.";
+            setStatus("Payment received. Your appointment is confirmed.", "success");
+          } else if (["expired", "cancelled"].includes(booking.status)) {
+            clearInterval(state.statusTimer);
+            clearInterval(state.timer);
+            el("payNow").disabled = true;
+            el("paymentStatus").textContent = `This booking is ${booking.status}. The time is available again.`;
+            setStatus("Payment was not completed before the hold expired.", "error");
+          }
+        } catch (error) {
+          el("paymentStatus").textContent = "Checking payment confirmation...";
+        }
+      };
+      check();
+      state.statusTimer = setInterval(check, 5000);
+    }
+
     async function startPayment() {
       if (!state.bookingId) return;
       const button = el("payNow");
@@ -253,6 +288,7 @@
         });
         el("paymentStatus").textContent = `Payment prompt sent. Check your phone. Checkout: ${data.checkout_request_id}`;
         setStatus("Enter your M-Pesa PIN on your phone to confirm payment.", "success");
+        startPaymentStatusPolling();
       } catch (error) {
         setStatus(error.message, "error");
         button.disabled = false;
