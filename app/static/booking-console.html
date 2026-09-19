@@ -402,8 +402,8 @@
 
     <section class="span-12">
       <div class="head">
-        <h2>Confirmed bookings</h2>
-        <button class="secondary" data-action="loadConfirmedBookings">Refresh</button>
+        <h2>All bookings</h2>
+        <button class="secondary" data-action="loadAllBookings">Refresh</button>
       </div>
       <div class="body">
         <div class="grid-2">
@@ -414,6 +414,33 @@
           <button class="dark" data-action="rescheduleBooking">Reschedule</button>
         </div>
         <div id="confirmedBookingsTable" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section class="span-7">
+      <div class="head">
+        <h2>All payments</h2>
+        <button class="secondary" data-action="loadPayments">Refresh</button>
+      </div>
+      <div class="body">
+        <div id="paymentsTable" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section class="span-5">
+      <div class="head">
+        <h2>Spa admins</h2>
+        <button class="secondary" data-action="loadStaff">Refresh</button>
+      </div>
+      <div class="body">
+        <div id="staffTable" class="table-wrap"></div>
+        <div class="grid-2">
+          <label>Name <input id="newStaffName"></label>
+          <label>Phone <input id="newStaffPhone"></label>
+          <label>Email <input id="newStaffEmail"></label>
+          <label>Password <input id="newStaffPassword" type="password"></label>
+        </div>
+        <button class="dark" data-action="createStaff">Create spa admin</button>
       </div>
     </section>
 
@@ -587,8 +614,8 @@
       ]);
     }
 
-    async function loadConfirmedBookings() {
-      const bookings = await request("/admin/bookings/confirmed", { auth: true });
+    async function loadAllBookings() {
+      const bookings = await request("/admin/bookings", { auth: true });
       const selector = $("confirmedBooking");
       selector.innerHTML = bookings.map((booking) =>
         `<option value="${booking.id}">${booking.customer_name} · ${new Date(booking.start_time).toLocaleString()}</option>`
@@ -600,6 +627,41 @@
         { label: "End", value: (booking) => new Date(booking.end_time).toLocaleTimeString() },
         { label: "Payment", value: (booking) => booking.payments.map((payment) => `${payment.status}${payment.mpesa_receipt_number ? ` · ${payment.mpesa_receipt_number}` : ""}`).join("<br>") }
       ]);
+    }
+
+    async function loadPayments() {
+      const payments = await request("/admin/payments", { auth: true });
+      renderTable("paymentsTable", payments, [
+        { label: "Booking", value: (payment) => payment.booking_id },
+        { label: "Amount", value: (payment) => `KES ${payment.amount_kes}` },
+        { label: "Status", value: (payment) => payment.status },
+        { label: "Receipt", value: (payment) => payment.mpesa_receipt_number || "-" },
+        { label: "Created", value: (payment) => new Date(payment.created_at).toLocaleString() }
+      ]);
+    }
+
+    async function loadStaff() {
+      const staff = await request("/admin/staff", { auth: true });
+      renderTable("staffTable", staff, [
+        { label: "Name", value: (member) => member.full_name },
+        { label: "Email", value: (member) => member.email || "-" },
+        { label: "Role", value: (member) => member.role },
+        { label: "Active", value: (member) => member.is_active ? "Yes" : "No" }
+      ]);
+    }
+
+    async function createStaff() {
+      await request("/admin/staff", {
+        method: "POST",
+        auth: true,
+        body: {
+          full_name: $("newStaffName").value,
+          phone: $("newStaffPhone").value,
+          email: $("newStaffEmail").value,
+          password: $("newStaffPassword").value
+        }
+      });
+      await loadStaff();
     }
 
     async function rescheduleBooking() {
@@ -670,7 +732,10 @@
       addCapacityWindow,
       loadCapacity,
       loadAvailability,
-      loadConfirmedBookings,
+      loadAllBookings,
+      loadPayments,
+      loadStaff,
+      createStaff,
       rescheduleBooking,
       createBooking,
       bookingStatus,

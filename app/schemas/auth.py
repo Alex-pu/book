@@ -52,3 +52,31 @@ class AdminBootstrapResponse(BaseModel):
     staff_id: uuid.UUID
     email: str
     role: str
+
+
+class SpaAdminCreate(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+    full_name: str = Field(min_length=1, max_length=200)
+    phone: str = Field(min_length=7, max_length=32)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("email")
+    @classmethod
+    def normalize_staff_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if "@" not in value:
+            raise ValueError("Email must be valid")
+        return value
+
+
+class StaffAdminRead(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: str | None
+    phone: str
+    role: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)

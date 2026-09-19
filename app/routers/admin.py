@@ -6,13 +6,18 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import require_admin
+from app.core.deps import require_admin, require_super_admin
 from app.core.security import hash_password
 from app.database import get_db
 from app.models.booking import Booking, BookingItem
 from app.models.catalog import Service, ServiceCapacityWindow
 from app.models.staff import Staff
-from app.schemas.auth import AdminBootstrapRequest, AdminBootstrapResponse
+from app.schemas.auth import (
+    AdminBootstrapRequest,
+    AdminBootstrapResponse,
+    SpaAdminCreate,
+    StaffAdminRead,
+)
 from app.schemas.booking import AdminBookingRead, BookingRescheduleRequest
 from app.schemas.catalog import (
     ServiceCapacitySettingsUpdate,
@@ -42,8 +47,8 @@ def admin_booking_read(booking: Booking) -> AdminBookingRead:
     )
 
 
-@router.get("/bookings/confirmed", response_model=list[AdminBookingRead])
-async def confirmed_bookings(
+@router.get("/bookings", response_model=list[AdminBookingRead])
+async def all_bookings(
     from_time: datetime | None = Query(default=None, alias="from"),
     to_time: datetime | None = Query(default=None, alias="to"),
     db: AsyncSession = Depends(get_db),
@@ -55,7 +60,6 @@ async def confirmed_bookings(
             selectinload(Booking.items),
             selectinload(Booking.payments),
         )
-        .where(Booking.status == "confirmed")
         .order_by(Booking.start_time)
     )
     if from_time is not None:
@@ -64,6 +68,51 @@ async def confirmed_bookings(
         stmt = stmt.where(Booking.start_time < to_time)
     rows = await db.execute(stmt)
     return [admin_booking_read(booking) for booking in rows.scalars()]
+
+
+@router.get("/bookings/confirmed", response_model=list[AdminBookingRead])
+async def confirmed_bookings(
+    from_time: datetime | None = Query(default=None, alias="from"),
+    to_time: datetime | None = Query(default=None, alias="to"),
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_admin),
+) -> list[AdminBookingRead]:
+    return await all_bookings(from_time, to_time, db, current_staff)
+
+
+@router.get("/staff", response_model=list[StaffAdminRead])
+async def list_admin_staff(
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_admin),
+) -> list[Staff]:
+    rows = await db.execute(select(Staff).where(Staff.role.in_(["admin", "spa_admin"])).order_by(Staff.full_name))
+    return list(rows.scalars())
+
+
+@router.post("/staff", response_model=StaffAdminRead, status_code=status.HTTP_201_CREATED)
+async def create_spa_admin(
+    payload: SpaAdminCreate,
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_super_admin),
+) -> Staff:
+    async with db.begin():
+        existing = await db.execute(
+            select(Staff).where(or_(Staff.email == payload.email, Staff.phone == payload.phone))
+        )
+        if existing.scalar_one_or_none() is not None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Staff email or phone already exists")
+        staff = Staff(
+            full_name=payload.full_name.strip(),
+            email=payload.email,
+            phone=payload.phone.strip(),
+            role="spa_admin",
+            password_hash=hash_password(payload.password),
+            is_active=True,
+        )
+        db.add(staff)
+        await db.flush()
+        await db.refresh(staff)
+    return staff
 
 
 @router.patch("/bookings/{booking_id}/reschedule", response_model=AdminBookingRead)

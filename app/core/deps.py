@@ -45,6 +45,15 @@ async def get_current_staff(
 
 
 async def require_admin(current_staff: Staff = Depends(get_current_staff)) -> Staff:
+    if current_staff.role not in {"admin", "spa_admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin or spa admin access required",
+        )
+    return current_staff
+
+
+async def require_super_admin(current_staff: Staff = Depends(get_current_staff)) -> Staff:
     if current_staff.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
