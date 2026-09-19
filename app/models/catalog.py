@@ -36,6 +36,9 @@ class Service(Base):
     price_kes: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     capacity_mode: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'worker'"))
     capacity_limit: Mapped[int] = mapped_column(nullable=False, server_default=text("1"))
+    requires_worker: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")

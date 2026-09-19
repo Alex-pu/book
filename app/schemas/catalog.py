@@ -13,6 +13,7 @@ class ServiceRead(BaseModel):
     price_kes: Decimal
     capacity_mode: str
     capacity_limit: int
+    requires_worker: bool
     is_active: bool
     created_at: datetime
 
@@ -22,6 +23,7 @@ class ServiceRead(BaseModel):
 class ServiceCapacitySettingsUpdate(BaseModel):
     capacity_mode: str = Field(pattern="^(worker|shared|private)$")
     capacity_limit: int = Field(default=1, ge=1, le=500)
+    requires_worker: bool | None = None
 
 
 class ServiceCapacityWindowCreate(BaseModel):

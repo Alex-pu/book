@@ -34,6 +34,19 @@ Set this in `.env`:
 DARAJA_CALLBACK_BASE_URL=https://korebench.co.ke
 ```
 
+Daraja STK Push also requires these values in `.env`:
+
+```env
+DARAJA_CONSUMER_KEY=your_daraja_consumer_key
+DARAJA_CONSUMER_SECRET=your_daraja_consumer_secret
+DARAJA_SHORTCODE=your_paybill_or_till_shortcode
+DARAJA_PASSKEY=your_shortcode_passkey
+DARAJA_ENV=production
+DARAJA_CALLBACK_BASE_URL=https://your-public-https-domain
+```
+
+`DARAJA_CALLBACK_BASE_URL` must be publicly reachable over HTTPS. `localhost` will not receive Safaricom callbacks. For local testing, use a secure tunnel and set its HTTPS URL here, then restart the API.
+
 ## VPS Port
 
 Run this app on port `8010` so it does not conflict with the existing apps:
@@ -59,3 +72,24 @@ git status
 git add .
 git commit -m "Add Swagger API docs setup"
 ```
+
+### Push from Windows
+
+From PowerShell in the project directory:
+
+```powershell
+.\scripts\push-to-github.ps1 "Describe the change"
+```
+
+The script runs the tests, stages all changes except ignored files such as `.env`, commits, and pushes `main`.
+
+### Update the VPS
+
+On the VPS:
+
+```bash
+cd ~/apps/spa-booking
+bash scripts/pull-on-vps.sh spa-booking
+```
+
+The script fast-forward pulls `main`, updates the virtualenv, runs Alembic migrations, and restarts the supplied systemd service. Omit `spa-booking` when the app is managed another way.

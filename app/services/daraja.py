@@ -66,15 +66,20 @@ class DarajaClient:
         return "https://api.safaricom.co.ke"
 
     def _ensure_configured(self) -> None:
-        required = [
-            self.settings.daraja_consumer_key,
-            self.settings.daraja_consumer_secret,
-            self.settings.daraja_shortcode,
-            self.settings.daraja_passkey,
-            self.settings.daraja_callback_base_url,
+        required = {
+            "DARAJA_CONSUMER_KEY": self.settings.daraja_consumer_key,
+            "DARAJA_CONSUMER_SECRET": self.settings.daraja_consumer_secret,
+            "DARAJA_SHORTCODE": self.settings.daraja_shortcode,
+            "DARAJA_PASSKEY": self.settings.daraja_passkey,
+            "DARAJA_CALLBACK_BASE_URL": self.settings.daraja_callback_base_url,
+        }
+        missing = [
+            name for name, value in required.items() if not value or value.strip().lower() == "undefined"
         ]
-        if not all(required):
-            raise DarajaError("Daraja STK Push is not fully configured")
+        if missing:
+            raise DarajaError(
+                "Daraja STK Push is not fully configured. Missing: " + ", ".join(missing)
+            )
 
     async def _access_token(self, client: httpx.AsyncClient) -> str:
         response = await client.get(
@@ -226,7 +231,7 @@ async def initiate_booking_payment(
     client = daraja_client or DarajaClient(settings)
     stk_result = await client.initiate_stk_push(
         phone=booking.customer_phone,
-        amount=service.price_kes,
+        amount=amount,
         booking_id=booking.id,
     )
     payment.checkout_request_id = stk_result.checkout_request_id

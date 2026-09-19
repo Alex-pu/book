@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spa Booking Console</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --ink: #172026;
+      --muted: #65717d;
+      --line: #d7dee6;
+      --accent: #0f766e;
+      --accent-2: #334155;
+      --danger: #b42318;
+      --ok: #067647;
+      --warn: #92400e;
+      --soft: #eef6f5;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: rgba(244, 246, 248, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+    .topbar {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: 1fr minmax(220px, 360px) auto;
+      gap: 12px;
+      align-items: center;
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+    main {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 14px;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-6 { grid-column: span 6; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+    .head {
+      min-height: 46px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+    .body {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    input, select, textarea {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      padding: 8px 10px;
+      font: inherit;
+    }
+    textarea {
+      min-height: 98px;
+      resize: vertical;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    button {
+      min-height: 38px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 12px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button:hover { filter: brightness(0.94); }
+    button.secondary {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+    button.dark { background: var(--accent-2); }
+    button.danger { background: var(--danger); }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 9px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .pill.ok { color: var(--ok); border-color: #abefc6; background: #ecfdf3; }
+    .pill.warn { color: var(--warn); border-color: #fed7aa; background: #fff7ed; }
+    .check {
+      display: flex;
+      grid-template-columns: none;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink);
+      font-size: 13px;
+    }
+    .check input {
+      width: 18px;
+      min-height: 18px;
+      accent-color: var(--accent);
+    }
+    .services {
+      display: grid;
+      gap: 8px;
+      max-height: 340px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .service-line {
+      display: grid;
+      grid-template-columns: 22px 1fr 74px;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px;
+      background: #fff;
+    }
+    .service-line input[type="checkbox"] {
+      width: 18px;
+      min-height: 18px;
+      accent-color: var(--accent);
+    }
+    .service-name {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .service-name strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .muted { color: var(--muted); }
+    .mono {
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+    }
+    pre {
+      margin: 0;
+      min-height: 320px;
+      max-height: 620px;
+      overflow: auto;
+      border-radius: 8px;
+      border: 1px solid #111827;
+      background: #111827;
+      color: #e5e7eb;
+      padding: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f8fafc;
+      color: var(--muted);
+      position: sticky;
+      top: 0;
+    }
+    .table-wrap {
+      max-height: 250px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    @media (max-width: 1100px) {
+      .topbar { grid-template-columns: 1fr; }
+      main { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      .span-3, .span-4, .span-5, .span-6, .span-7, .span-8 { grid-column: span 6; }
+    }
+    @media (max-width: 640px) {
+      main { grid-template-columns: 1fr; padding: 12px; }
+      .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-12 { grid-column: span 1; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .topbar { padding: 12px; }
+      .service-line { grid-template-columns: 22px 1fr; }
+      .service-line label { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <h1>Spa Booking Console</h1>
+      <label>Base URL <input id="baseUrl" value="/api/v1"></label>
+      <div class="row">
+        <span id="authState" class="pill warn">Signed out</span>
+        <button class="secondary" data-action="health">Health</button>
+        <button class="secondary" data-action="docs">Docs</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="span-4">
+      <div class="head">
+        <h2>Admin</h2>
+        <span class="pill">Bearer</span>
+      </div>
+      <div class="body">
+        <div class="grid-2">
+          <label>Email <input id="email" value="kamaua175@gmail.com" autocomplete="username"></label>
+          <label>Password <input id="password" type="password" autocomplete="current-password"></label>
+        </div>
+        <div class="row">
+          <button data-action="login">Login</button>
+          <button class="secondary" data-action="logout">Clear</button>
+          <button class="secondary" data-action="loadCapacity">Capacity</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="span-8">
+      <div class="head">
+        <h2>Services</h2>
+        <button class="secondary" data-action="loadServices">Refresh</button>
+      </div>
+      <div class="body">
+        <div id="serviceLines" class="services"></div>
+      </div>
+    </section>
+
+    <section class="span-5">
+      <div class="head">
+        <h2>Booking</h2>
+        <span id="bookingState" class="pill">No booking</span>
+      </div>
+      <div class="body">
+        <div class="grid-2">
+          <label>Name <input id="customerName" value="Alex"></label>
+          <label>Phone <input id="customerPhone" value="254704813341"></label>
+        </div>
+        <div class="grid-2">
+          <label>Start <input id="startTime" type="datetime-local"></label>
+          <label>Party Size <input id="partySize" type="number" min="1" max="100" value="1"></label>
+        </div>
+        <label>Booking ID <input id="bookingId" class="mono"></label>
+        <div class="row">
+          <button data-action="createBooking">Create</button>
+          <button class="secondary" data-action="bookingStatus">Status</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="span-7">
+      <div class="head">
+        <h2>Payment</h2>
+        <span class="pill warn">STK</span>
+      </div>
+      <div class="body">
+        <label class="check"><input id="confirmMoney" type="checkbox"> Confirm live STK prompt</label>
+        <div class="grid-2">
+          <label>Payment ID <input id="paymentId" class="mono"></label>
+          <label>Checkout Request ID <input id="checkoutRequestId" class="mono"></label>
+        </div>
+        <div class="row">
+          <button class="danger" data-action="stkPush">Send STK</button>
+          <button class="secondary" data-action="stkQuery">Query</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="span-6">
+      <div class="head">
+        <h2>Service Capacity</h2>
+        <span class="pill">Admin</span>
+      </div>
+      <div class="body">
+        <div class="grid-3">
+          <label>Service <select id="capacityService"></select></label>
+          <label>Mode
+            <select id="capacityMode">
+              <option value="worker">worker</option>
+              <option value="shared">shared</option>
+              <option value="private">private</option>
+            </select>
+          </label>
+          <label>Limit <input id="capacityLimit" type="number" min="1" max="500" value="1"></label>
+          <label class="check"><input id="requiresWorker" type="checkbox"> Requires attendant</label>
+        </div>
+        <div class="grid-3">
+          <label>Window Start <input id="capacityStart" type="datetime-local"></label>
+          <label>Window End <input id="capacityEnd" type="datetime-local"></label>
+          <label>Capacity <input id="capacityValue" type="number" min="0" max="500" value="2"></label>
+        </div>
+        <label>Note <input id="capacityNote" value="Open"></label>
+        <div class="row">
+          <button data-action="saveCapacityMode">Save Mode</button>
+          <button class="dark" data-action="addCapacityWindow">Add Window</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="span-6">
+      <div class="head">
+        <h2>Availability</h2>
+        <button class="secondary" data-action="loadAvailability">Load</button>
+      </div>
+      <div class="body">
+        <div class="grid-2">
+          <label>Service <select id="availabilityService"></select></label>
+          <label>Date <input id="availabilityDate" type="date"></label>
+        </div>
+        <div id="availabilityTable" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section class="span-12">
+      <div class="head">
+        <h2>Response</h2>
+        <div class="row">
+          <span id="lastStatus" class="pill">Idle</span>
+          <button class="secondary" data-action="clearOutput">Clear</button>
+        </div>
+      </div>
+      <div class="body">
+        <pre id="output"></pre>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = {
+      token: localStorage.getItem("spaBookingToken") || "",
+      services: []
+    };
+
+    function baseUrl() {
+      return $("baseUrl").value.replace(/\/$/, "");
+    }
+
+    function setOutput(label, value) {
+      $("lastStatus").textContent = label;
+      $("output").textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    }
+
+    function setAuthState() {
+      $("authState").textContent = state.token ? "Signed in" : "Signed out";
+      $("authState").className = state.token ? "pill ok" : "pill warn";
+    }
+
+    function headers(auth = false) {
+      const h = { "Content-Type": "application/json" };
+      if (auth && state.token) h.Authorization = `Bearer ${state.token}`;
+      return h;
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch(`${baseUrl()}${path}`, {
+        method: options.method || "GET",
+        headers: headers(options.auth),
+        body: options.body === undefined ? undefined : JSON.stringify(options.body)
+      });
+      const text = await response.text();
+      let data = text;
+      try { data = text ? JSON.parse(text) : null; } catch (_) {}
+      setOutput(`${response.status} ${response.statusText}`, data);
+      if (!response.ok) throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+      return data;
+    }
+
+    function localDateTime(date) {
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function isoFromLocal(value) {
+      return new Date(value).toISOString();
+    }
+
+    function renderServices() {
+      $("serviceLines").innerHTML = state.services.map((service, index) => `
+        <div class="service-line">
+          <input type="checkbox" class="service-check" data-id="${service.id}" ${index === 0 ? "checked" : ""}>
+          <div class="service-name">
+            <strong>${service.name}</strong>
+            <span class="muted">${service.duration_min} min · KES ${service.price_kes} · ${service.capacity_mode}/${service.capacity_limit}</span>
+          </div>
+          <label>Qty <input class="service-qty" data-id="${service.id}" type="number" min="1" max="100" value="1"></label>
+        </div>
+      `).join("");
+
+      const options = state.services.map((service) => `<option value="${service.id}">${service.name}</option>`).join("");
+      $("capacityService").innerHTML = options;
+      $("availabilityService").innerHTML = options;
+      syncCapacityFields();
+    }
+
+    function syncCapacityFields() {
+      const service = state.services.find((item) => item.id === $("capacityService").value);
+      if (!service) return;
+      $("capacityMode").value = service.capacity_mode;
+      $("capacityLimit").value = service.capacity_limit;
+      $("requiresWorker").checked = service.requires_worker;
+      $("capacityValue").value = service.capacity_mode === "shared" ? service.capacity_limit : 2;
+    }
+
+    function selectedServices() {
+      return [...document.querySelectorAll(".service-check:checked")].map((check) => {
+        const id = check.dataset.id;
+        const qty = Number(document.querySelector(`.service-qty[data-id="${id}"]`).value || 1);
+        return { service_id: id, quantity: qty };
+      });
+    }
+
+    function renderTable(targetId, rows, columns) {
+      if (!rows.length) {
+        $(targetId).innerHTML = "<table><tbody><tr><td>No rows</td></tr></tbody></table>";
+        return;
+      }
+      const head = columns.map((column) => `<th>${column.label}</th>`).join("");
+      const body = rows.map((row) => `<tr>${columns.map((column) => `<td>${column.value(row) ?? ""}</td>`).join("")}</tr>`).join("");
+      $(targetId).innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    async function health() {
+      const response = await fetch("/health");
+      setOutput(`${response.status} ${response.statusText}`, await response.json());
+    }
+
+    async function login() {
+      const data = await request("/auth/login", {
+        method: "POST",
+        body: { email: $("email").value, password: $("password").value }
+      });
+      state.token = data.access_token;
+      localStorage.setItem("spaBookingToken", state.token);
+      setAuthState();
+    }
+
+    async function loadServices() {
+      state.services = await request("/services");
+      renderServices();
+    }
+
+    async function saveCapacityMode() {
+      const serviceId = $("capacityService").value;
+      await request(`/admin/services/${serviceId}/capacity`, {
+        method: "PATCH",
+        auth: true,
+        body: {
+          capacity_mode: $("capacityMode").value,
+          capacity_limit: Number($("capacityLimit").value),
+          requires_worker: $("requiresWorker").checked
+        }
+      });
+      await loadServices();
+    }
+
+    async function addCapacityWindow() {
+      await request("/admin/service-capacity", {
+        method: "POST",
+        auth: true,
+        body: {
+          service_id: $("capacityService").value,
+          start_time: isoFromLocal($("capacityStart").value),
+          end_time: isoFromLocal($("capacityEnd").value),
+          capacity: Number($("capacityValue").value),
+          note: $("capacityNote").value
+        }
+      });
+    }
+
+    async function loadCapacity() {
+      await request("/admin/service-capacity", { auth: true });
+    }
+
+    async function loadAvailability() {
+      const data = await request(`/availability?service_id=${encodeURIComponent($("availabilityService").value)}&date=${encodeURIComponent($("availabilityDate").value)}`);
+      renderTable("availabilityTable", data.slots || [], [
+        { label: "Start", value: (slot) => new Date(slot.start_time).toLocaleString() },
+        { label: "End", value: (slot) => new Date(slot.end_time).toLocaleTimeString() },
+        { label: "Capacity", value: (slot) => slot.available_capacity }
+      ]);
+    }
+
+    async function createBooking() {
+      const services = selectedServices();
+      if (!services.length) throw new Error("Select at least one service");
+      const data = await request("/bookings", {
+        method: "POST",
+        body: {
+          start_time: isoFromLocal($("startTime").value),
+          customer_name: $("customerName").value,
+          customer_phone: $("customerPhone").value,
+          party_size: Number($("partySize").value),
+          services
+        }
+      });
+      $("bookingId").value = data.booking_id;
+      $("bookingState").textContent = data.status;
+      $("bookingState").className = "pill ok";
+    }
+
+    async function bookingStatus() {
+      const data = await request(`/bookings/${$("bookingId").value}/status`);
+      $("bookingState").textContent = data.status;
+      $("bookingState").className = data.status === "confirmed" ? "pill ok" : "pill";
+    }
+
+    async function stkPush() {
+      if (!$("confirmMoney").checked) throw new Error("Confirm live STK prompt first");
+      const data = await request("/payments/stk-push", {
+        method: "POST",
+        body: { booking_id: $("bookingId").value }
+      });
+      $("paymentId").value = data.payment_id;
+      $("checkoutRequestId").value = data.checkout_request_id;
+    }
+
+    async function stkQuery() {
+      await request(`/payments/stk-push/${encodeURIComponent($("checkoutRequestId").value)}/query`, {
+        method: "POST",
+        auth: true,
+        body: {}
+      });
+    }
+
+    const actions = {
+      health,
+      docs: () => { window.location.href = "/docs"; },
+      login,
+      logout: () => {
+        state.token = "";
+        localStorage.removeItem("spaBookingToken");
+        setAuthState();
+      },
+      loadServices,
+      saveCapacityMode,
+      addCapacityWindow,
+      loadCapacity,
+      loadAvailability,
+      createBooking,
+      bookingStatus,
+      stkPush,
+      stkQuery,
+      clearOutput: () => setOutput("Idle", "")
+    };
+
+    document.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      button.disabled = true;
+      try {
+        await actions[button.dataset.action]();
+      } catch (error) {
+        setOutput("Error", { detail: error.message });
+      } finally {
+        button.disabled = false;
+      }
+    });
+    $("capacityService").addEventListener("change", syncCapacityFields);
+
+    const now = new Date();
+    const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
+    nextHour.setMinutes(0, 0, 0);
+    $("startTime").value = localDateTime(nextHour);
+    $("availabilityDate").value = nextHour.toISOString().slice(0, 10);
+    const open = new Date(nextHour);
+    open.setHours(9, 0, 0, 0);
+    const close = new Date(nextHour);
+    close.setHours(18, 0, 0, 0);
+    $("capacityStart").value = localDateTime(open);
+    $("capacityEnd").value = localDateTime(close);
+    setAuthState();
+    loadServices().catch((error) => setOutput("Error", { detail: error.message }));
+  </script>
+</body>
+</html>

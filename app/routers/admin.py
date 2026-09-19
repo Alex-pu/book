@@ -78,6 +78,8 @@ async def update_service_capacity_settings(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
         service.capacity_mode = payload.capacity_mode
         service.capacity_limit = payload.capacity_limit
+        if payload.requires_worker is not None:
+            service.requires_worker = payload.requires_worker
         await db.flush()
         await db.refresh(service)
     return service

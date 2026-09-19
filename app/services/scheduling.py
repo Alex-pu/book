@@ -246,6 +246,27 @@ async def used_capacity(
     return int(row.scalar_one())
 
 
+async def used_worker_capacity(
+    db: AsyncSession,
+    *,
+    start_time: datetime,
+    end_time: datetime,
+    at_time: datetime,
+) -> int:
+    row = await db.execute(
+        select(func.coalesce(func.sum(BookingScheduleItem.units), 0))
+        .join(Booking, Booking.id == BookingScheduleItem.booking_id)
+        .join(Service, Service.id == BookingScheduleItem.service_id)
+        .where(
+            Service.requires_worker.is_(True),
+            BookingScheduleItem.start_time < end_time,
+            BookingScheduleItem.end_time > start_time,
+            active_capacity_status_filter(at_time),
+        )
+    )
+    return int(row.scalar_one())
+
+
 async def available_capacity(
     db: AsyncSession,
     *,
@@ -262,13 +283,18 @@ async def available_capacity(
     )
     if capacity <= 0:
         return 0
-    used = await used_capacity(
-        db,
-        service_id=service.id,
-        start_time=start_time,
-        end_time=end_time,
-        at_time=at_time,
-    )
+    if service.requires_worker:
+        used = await used_worker_capacity(
+            db, start_time=start_time, end_time=end_time, at_time=at_time
+        )
+    else:
+        used = await used_capacity(
+            db,
+            service_id=service.id,
+            start_time=start_time,
+            end_time=end_time,
+            at_time=at_time,
+        )
     return max(capacity - used, 0)
 
 
@@ -427,7 +453,6 @@ async def create_soft_locked_booking(
     booking.schedule_items = schedule_items
     db.add(booking)
     await db.flush()
-    await db.refresh(booking)
     return booking
 
 

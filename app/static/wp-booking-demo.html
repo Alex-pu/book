@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book a treatment</title>
+  <link rel="stylesheet" href="/static/wp-booking-demo.css">
+</head>
+<body>
+  <header class="site-bar">
+    <div class="brand">
+      <p class="brand-name">Kore Bench Spa</p>
+      <span class="brand-note">WordPress integration preview</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="intro">
+      <h1>Make time for yourself.</h1>
+      <p>Choose a treatment, pick a time that works, and leave the rest to us.</p>
+    </section>
+
+    <section class="widget" aria-label="Spa booking widget">
+      <div class="controls">
+        <p class="eyebrow">Book online</p>
+        <h2>Your visit</h2>
+
+        <label class="field">Treatment
+          <select id="service">
+            <option value="">Loading treatments...</option>
+          </select>
+        </label>
+
+        <div class="field-row">
+          <label class="field">Guests
+            <input id="partySize" type="number" min="1" max="20" value="1">
+          </label>
+          <label class="field">Date
+            <input id="date" type="date">
+          </label>
+        </div>
+
+        <label class="field">Name
+          <input id="customerName" type="text" autocomplete="name" placeholder="Your full name">
+        </label>
+
+        <label class="field">Phone
+          <input id="customerPhone" type="tel" autocomplete="tel" placeholder="+254...">
+        </label>
+
+        <button id="loadSlots" class="primary" type="button">Find a time</button>
+        <p id="status" class="status" role="status"></p>
+
+        <details class="api-config">
+          <summary>Connection settings</summary>
+          <label class="field">Backend API base
+            <input id="apiBase" type="url" value="/api/v1" spellcheck="false">
+          </label>
+        </details>
+      </div>
+
+      <div class="slots-panel">
+        <div class="slots-heading">
+          <div>
+            <p class="eyebrow">Live availability</p>
+            <h2>Pick a time</h2>
+          </div>
+          <span id="slotsDate" class="slots-date"></span>
+        </div>
+        <div id="slotList" class="slot-list"></div>
+        <p id="emptyState" class="empty">Choose a date and treatment to see live availability.</p>
+        <div id="bookingSummary" class="booking-summary" hidden>
+          <strong id="selectedLabel"></strong>
+          <span id="selectedDetails"></span>
+          <button id="bookNow" class="primary" type="button" style="margin-top:18px">Hold this time</button>
+          <button id="payNow" class="primary" type="button" style="margin-top:10px" hidden>Pay now</button>
+          <span id="paymentStatus" class="status"></span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    const state = { services: [], slots: [], selectedSlot: null, bookingId: null, lockExpiresAt: null, timer: null };
+
+    function apiUrl(path) {
+      return `${el("apiBase").value.replace(/\/$/, "")}${path}`;
+    }
+
+    function localDateString(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function setStatus(message, kind = "") {
+      el("status").textContent = message;
+      el("status").className = `status ${kind}`;
+    }
+
+    function formatTime(value) {
+      return new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    }
+
+    function formatDate(value) {
+      return new Date(`${value}T12:00:00`).toLocaleDateString([], {
+        weekday: "short", month: "short", day: "numeric"
+      });
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch(apiUrl(path), {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = data && data.detail ? data.detail : `Request failed (${response.status})`;
+        throw new Error(detail);
+      }
+      return data;
+    }
+
+    function renderServices() {
+      el("service").innerHTML = state.services.map((service) =>
+        `<option value="${service.id}">${service.name} - ${service.duration_min} min</option>`
+      ).join("");
+    }
+
+    function renderSlots() {
+      const list = el("slotList");
+      list.innerHTML = state.slots.map((slot, index) =>
+        `<button class="slot" type="button" data-index="${index}">
+          ${formatTime(slot.start_time)}
+          <small>${slot.available_capacity} available</small>
+        </button>`
+      ).join("");
+      el("emptyState").hidden = state.slots.length > 0;
+      list.querySelectorAll(".slot").forEach((button) => {
+        button.addEventListener("click", () => selectSlot(Number(button.dataset.index)));
+      });
+    }
+
+    function selectSlot(index) {
+      state.selectedSlot = state.slots[index];
+      document.querySelectorAll(".slot").forEach((button) => button.classList.remove("selected"));
+      document.querySelector(`[data-index="${index}"]`).classList.add("selected");
+      const service = state.services.find((item) => item.id === el("service").value);
+      el("selectedLabel").textContent = `${service.name} at ${formatTime(state.selectedSlot.start_time)}`;
+      el("selectedDetails").textContent = `${formatDate(el("date").value)} · ${el("partySize").value} guest(s)`;
+      el("bookingSummary").hidden = false;
+    }
+
+    async function loadServices() {
+      state.services = await request("/services");
+      if (!state.services.length) throw new Error("No active services are configured.");
+      renderServices();
+      setStatus(`${state.services.length} treatments available. Choose one to see times.`);
+    }
+
+    async function loadSlots() {
+      if (!el("date").value) {
+        setStatus("Choose a date first.", "error");
+        return;
+      }
+      state.selectedSlot = null;
+      el("bookingSummary").hidden = true;
+      el("slotList").innerHTML = "";
+      el("emptyState").hidden = false;
+      el("emptyState").textContent = "Loading live availability...";
+      el("slotsDate").textContent = formatDate(el("date").value);
+      setStatus("Checking the live booking calendar...");
+      try {
+        const query = new URLSearchParams({
+          service_id: el("service").value,
+          date: el("date").value
+        });
+        const data = await request(`/availability?${query}`);
+        state.slots = data.slots || [];
+        renderSlots();
+        setStatus(state.slots.length ? "Select a time to continue." : "No times are available for this date.");
+      } catch (error) {
+        state.slots = [];
+        renderSlots();
+        el("emptyState").textContent = error.message;
+        setStatus(error.message, "error");
+      }
+    }
+
+    async function createBooking() {
+      if (!state.selectedSlot) return;
+      const name = el("customerName").value.trim();
+      const phone = el("customerPhone").value.trim();
+      if (!name || !phone) {
+        setStatus("Enter your name and phone number first.", "error");
+        return;
+      }
+      const button = el("bookNow");
+      button.disabled = true;
+      setStatus("Creating your temporary booking...");
+      try {
+        const data = await request("/bookings", {
+          method: "POST",
+          body: JSON.stringify({
+            service_id: el("service").value,
+            start_time: state.selectedSlot.start_time,
+            customer_name: name,
+            customer_phone: phone,
+            party_size: Number(el("partySize").value)
+          })
+        });
+        state.bookingId = data.booking_id;
+        state.lockExpiresAt = data.lock_expires_at;
+        el("bookNow").hidden = true;
+        el("payNow").hidden = false;
+        startLockCountdown();
+        setStatus(`Booking held until ${new Date(data.lock_expires_at).toLocaleTimeString()}. Reference: ${data.booking_id}`, "success");
+      } catch (error) {
+        setStatus(error.message, "error");
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function startLockCountdown() {
+      clearInterval(state.timer);
+      const update = () => {
+        const remaining = new Date(state.lockExpiresAt).getTime() - Date.now();
+        if (remaining <= 0) {
+          clearInterval(state.timer);
+          el("payNow").disabled = true;
+          el("paymentStatus").textContent = "This hold has expired. Choose the time again.";
+          return;
+        }
+        const seconds = Math.ceil(remaining / 1000);
+        el("paymentStatus").textContent = `Pay within ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} to keep this time.`;
+      };
+      update();
+      state.timer = setInterval(update, 1000);
+    }
+
+    async function startPayment() {
+      if (!state.bookingId) return;
+      const button = el("payNow");
+      button.disabled = true;
+      setStatus("Sending the M-Pesa payment prompt...");
+      try {
+        const data = await request("/payments/stk-push", {
+          method: "POST",
+          body: JSON.stringify({ booking_id: state.bookingId })
+        });
+        el("paymentStatus").textContent = `Payment prompt sent. Check your phone. Checkout: ${data.checkout_request_id}`;
+        setStatus("Enter your M-Pesa PIN on your phone to confirm payment.", "success");
+      } catch (error) {
+        setStatus(error.message, "error");
+        button.disabled = false;
+      }
+    }
+
+    el("date").value = localDateString(new Date());
+    el("loadSlots").addEventListener("click", loadSlots);
+    el("bookNow").addEventListener("click", createBooking);
+    el("payNow").addEventListener("click", startPayment);
+    el("service").addEventListener("change", loadSlots);
+    el("date").addEventListener("change", loadSlots);
+    loadServices().catch((error) => setStatus(error.message, "error"));
+  </script>
+</body>
+</html>

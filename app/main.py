@@ -63,6 +63,14 @@ def create_app() -> FastAPI:
     async def api_test_page() -> FileResponse:
         return FileResponse(STATIC_DIR / "api-test.html")
 
+    @app.get("/booking-console", include_in_schema=False)
+    async def booking_console_page() -> FileResponse:
+        return FileResponse(STATIC_DIR / "booking-console.html")
+
+    @app.get("/wp-booking-demo", include_in_schema=False)
+    async def wp_booking_demo_page() -> FileResponse:
+        return FileResponse(STATIC_DIR / "wp-booking-demo.html")
+
     app.include_router(auth.router, prefix=API_PREFIX)
     app.include_router(services.router, prefix=API_PREFIX)
     app.include_router(availability.router, prefix=API_PREFIX)
