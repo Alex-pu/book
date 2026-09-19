@@ -51,7 +51,7 @@
         <button id="loadSlots" class="primary" type="button">Find a time</button>
         <p id="status" class="status" role="status"></p>
 
-        <details class="api-config">
+        <details class="api-config" hidden>
           <summary>Connection settings</summary>
           <label class="field">Backend API base
             <input id="apiBase" type="url" value="/api/v1" spellcheck="false">
@@ -72,7 +72,7 @@
         <div id="bookingSummary" class="booking-summary" hidden>
           <strong id="selectedLabel"></strong>
           <span id="selectedDetails"></span>
-          <span id="paybillInstructions"></span>
+          <span id="paybillInstructions" class="paybill-message"></span>
           <button id="bookNow" class="primary" type="button" style="margin-top:18px">Hold this time</button>
           <button id="payNow" class="primary" type="button" style="margin-top:10px" hidden>Pay now</button>
           <span id="paymentStatus" class="status"></span>
@@ -92,8 +92,8 @@
   </main>
 
   <footer class="site-footer">
-    <strong>Need help with a booking or payment?</strong>
-    <span>Call <a href="tel:0704813341">0704813341</a> or <a href="tel:0714675050">0714675050</a></span>
+    <strong>Need help with your booking or payment?</strong>
+    <span>Call <a href="tel:070481341">070481341</a> or <a href="tel:0714675050">0714675050</a></span>
   </footer>
 
   <script>
@@ -239,7 +239,7 @@
         state.bookingId = data.booking_id;
         state.accountReference = data.account_reference;
         state.lockExpiresAt = data.lock_expires_at;
-        el("paybillInstructions").textContent = `Fallback payment: PayBill ${data.paybill_shortcode}, account ${data.account_reference}. Keep the M-Pesa receipt. Use Pay now first when possible.`;
+        el("paybillInstructions").textContent = `Your payment prompt should arrive shortly. If it takes too long, pay via PayBill ${data.paybill_shortcode} using account number ${data.account_reference}, then check your booking again later.`;
         el("bookNow").hidden = true;
         el("payNow").hidden = false;
         startLockCountdown();
