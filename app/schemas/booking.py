@@ -69,3 +69,29 @@ class BookingStatus(BaseModel):
     staff_id: uuid.UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AdminBookingPaymentRead(BaseModel):
+    status: str
+    amount_kes: Decimal
+    mpesa_receipt_number: str | None
+    checkout_request_id: str | None
+    completed_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminBookingRead(BaseModel):
+    id: uuid.UUID
+    customer_name: str
+    customer_phone: str
+    party_size: int
+    start_time: datetime
+    end_time: datetime
+    status: str
+    service_ids: list[uuid.UUID]
+    payments: list[AdminBookingPaymentRead]
+
+
+class BookingRescheduleRequest(BaseModel):
+    start_time: datetime

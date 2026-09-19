@@ -402,6 +402,23 @@
 
     <section class="span-12">
       <div class="head">
+        <h2>Confirmed bookings</h2>
+        <button class="secondary" data-action="loadConfirmedBookings">Refresh</button>
+      </div>
+      <div class="body">
+        <div class="grid-2">
+          <label>Reschedule booking <select id="confirmedBooking"></select></label>
+          <label>New start time <input id="rescheduleStart" type="datetime-local"></label>
+        </div>
+        <div class="row">
+          <button class="dark" data-action="rescheduleBooking">Reschedule</button>
+        </div>
+        <div id="confirmedBookingsTable" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section class="span-12">
+      <div class="head">
         <h2>Response</h2>
         <div class="row">
           <span id="lastStatus" class="pill">Idle</span>
@@ -570,6 +587,33 @@
       ]);
     }
 
+    async function loadConfirmedBookings() {
+      const bookings = await request("/admin/bookings/confirmed", { auth: true });
+      const selector = $("confirmedBooking");
+      selector.innerHTML = bookings.map((booking) =>
+        `<option value="${booking.id}">${booking.customer_name} · ${new Date(booking.start_time).toLocaleString()}</option>`
+      ).join("");
+      renderTable("confirmedBookingsTable", bookings, [
+        { label: "Guest", value: (booking) => booking.customer_name },
+        { label: "Phone", value: (booking) => booking.customer_phone },
+        { label: "Start", value: (booking) => new Date(booking.start_time).toLocaleString() },
+        { label: "End", value: (booking) => new Date(booking.end_time).toLocaleTimeString() },
+        { label: "Payment", value: (booking) => booking.payments.map((payment) => `${payment.status}${payment.mpesa_receipt_number ? ` · ${payment.mpesa_receipt_number}` : ""}`).join("<br>") }
+      ]);
+    }
+
+    async function rescheduleBooking() {
+      const bookingId = $("confirmedBooking").value;
+      const startTime = $("rescheduleStart").value;
+      if (!bookingId || !startTime) throw new Error("Choose a booking and new start time first");
+      await request(`/admin/bookings/${bookingId}/reschedule`, {
+        method: "PATCH",
+        auth: true,
+        body: { start_time: isoFromLocal(startTime) }
+      });
+      await loadConfirmedBookings();
+    }
+
     async function createBooking() {
       const services = selectedServices();
       if (!services.length) throw new Error("Select at least one service");
@@ -626,6 +670,8 @@
       addCapacityWindow,
       loadCapacity,
       loadAvailability,
+      loadConfirmedBookings,
+      rescheduleBooking,
       createBooking,
       bookingStatus,
       stkPush,

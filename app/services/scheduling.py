@@ -232,8 +232,9 @@ async def used_capacity(
     start_time: datetime,
     end_time: datetime,
     at_time: datetime,
+    exclude_booking_id: uuid.UUID | None = None,
 ) -> int:
-    row = await db.execute(
+    stmt = (
         select(func.coalesce(func.sum(BookingScheduleItem.units), 0))
         .join(Booking, Booking.id == BookingScheduleItem.booking_id)
         .where(
@@ -243,6 +244,9 @@ async def used_capacity(
             active_capacity_status_filter(at_time),
         )
     )
+    if exclude_booking_id is not None:
+        stmt = stmt.where(Booking.id != exclude_booking_id)
+    row = await db.execute(stmt)
     return int(row.scalar_one())
 
 
@@ -252,8 +256,9 @@ async def used_worker_capacity(
     start_time: datetime,
     end_time: datetime,
     at_time: datetime,
+    exclude_booking_id: uuid.UUID | None = None,
 ) -> int:
-    row = await db.execute(
+    stmt = (
         select(func.coalesce(func.sum(BookingScheduleItem.units), 0))
         .join(Booking, Booking.id == BookingScheduleItem.booking_id)
         .join(Service, Service.id == BookingScheduleItem.service_id)
@@ -264,6 +269,9 @@ async def used_worker_capacity(
             active_capacity_status_filter(at_time),
         )
     )
+    if exclude_booking_id is not None:
+        stmt = stmt.where(Booking.id != exclude_booking_id)
+    row = await db.execute(stmt)
     return int(row.scalar_one())
 
 
@@ -274,6 +282,7 @@ async def available_capacity(
     start_time: datetime,
     end_time: datetime,
     at_time: datetime,
+    exclude_booking_id: uuid.UUID | None = None,
 ) -> int:
     capacity = await configured_capacity(
         db,
@@ -285,7 +294,11 @@ async def available_capacity(
         return 0
     if service.requires_worker:
         used = await used_worker_capacity(
-            db, start_time=start_time, end_time=end_time, at_time=at_time
+            db,
+            start_time=start_time,
+            end_time=end_time,
+            at_time=at_time,
+            exclude_booking_id=exclude_booking_id,
         )
     else:
         used = await used_capacity(
@@ -294,6 +307,7 @@ async def available_capacity(
             start_time=start_time,
             end_time=end_time,
             at_time=at_time,
+            exclude_booking_id=exclude_booking_id,
         )
     return max(capacity - used, 0)
 
@@ -324,6 +338,7 @@ async def schedule_service_units(
     quantity: int,
     start_time: datetime,
     at_time: datetime,
+    exclude_booking_id: uuid.UUID | None = None,
 ) -> list[BookingScheduleItem]:
     if quantity <= 0:
         raise SchedulingError("Service quantity must be positive")
@@ -354,6 +369,7 @@ async def schedule_service_units(
             start_time=cursor,
             end_time=end_time,
             at_time=at_time,
+            exclude_booking_id=exclude_booking_id,
         )
         if capacity <= 0:
             cursor += timedelta(minutes=SLOT_STEP_MINUTES)
