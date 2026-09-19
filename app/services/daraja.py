@@ -1,4 +1,5 @@
 import base64
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -87,7 +88,7 @@ class DarajaClient:
             params={"grant_type": "client_credentials"},
             auth=(self.settings.daraja_consumer_key, self.settings.daraja_consumer_secret),
         )
-        response.raise_for_status()
+        self._raise_for_status(response, "access token request")
         token = response.json().get("access_token")
         if not token:
             raise DarajaError("Daraja access token response did not include access_token")
@@ -99,6 +100,30 @@ class DarajaClient:
         )
         return base64.b64encode(password_value.encode("utf-8")).decode("utf-8")
 
+    @staticmethod
+    def _normalize_phone(phone: str) -> str:
+        value = re.sub(r"[\s()-]", "", phone)
+        if value.startswith("+"):
+            value = value[1:]
+        if value.startswith("07") or value.startswith("01"):
+            value = "254" + value[1:]
+        if not re.fullmatch(r"254\d{9}", value):
+            raise DarajaError("Use a valid Kenyan M-Pesa number, for example 0712345678")
+        return value
+
+    @staticmethod
+    def _raise_for_status(response: httpx.Response, operation: str) -> None:
+        try:
+            response.raise_for_status()
+            return
+        except httpx.HTTPStatusError:
+            pass
+        try:
+            detail = response.json()
+        except ValueError:
+            detail = response.text[:500]
+        raise DarajaError(f"Daraja {operation} failed ({response.status_code}): {detail}")
+
     async def initiate_stk_push(
         self,
         *,
@@ -107,6 +132,7 @@ class DarajaClient:
         booking_id: uuid.UUID,
     ) -> StkPushResult:
         self._ensure_configured()
+        phone = self._normalize_phone(phone)
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         password = self._stk_password(timestamp)
         callback_url = f"{self.settings.daraja_callback_base_url.rstrip('/')}/api/v1/payments/callback"
@@ -132,7 +158,7 @@ class DarajaClient:
                 headers={"Authorization": f"Bearer {token}"},
                 json=payload,
             )
-            response.raise_for_status()
+            self._raise_for_status(response, "STK query")
             data = response.json()
 
         checkout_request_id = data.get("CheckoutRequestID")
@@ -157,7 +183,7 @@ class DarajaClient:
                 headers={"Authorization": f"Bearer {token}"},
                 json=payload,
             )
-            response.raise_for_status()
+            self._raise_for_status(response, "STK Push")
             data = response.json()
 
         return StkPushQueryResult(
