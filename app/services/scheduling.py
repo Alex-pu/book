@@ -16,6 +16,8 @@ ACTIVE_CONFLICT_STATUSES = ("confirmed", "checked_in")
 PENDING_PAYMENT = "pending_payment"
 SLOT_STEP_MINUTES = 30
 CAPACITY_MODES = {"worker", "shared", "private"}
+DEFAULT_OPEN_TIME = time(9, 0)
+DEFAULT_CLOSE_TIME = time(20, 0)
 
 
 class SchedulingError(ValueError):
@@ -216,6 +218,8 @@ async def configured_capacity(
         .order_by(ServiceCapacityWindow.capacity.desc())
     )
     configured = rows.scalars().first()
+    if configured is None:
+        configured = service.capacity_limit
     if service.capacity_mode == "private":
         return min(configured or 0, 1)
     if configured is None:
@@ -479,8 +483,8 @@ async def list_available_slots(
     day: date,
 ) -> list[AvailabilitySlot]:
     service = await get_service_or_raise(db, service_id)
-    day_start = datetime.combine(day, time.min, tzinfo=timezone.utc)
-    day_end = day_start + timedelta(days=1)
+    day_start = datetime.combine(day, DEFAULT_OPEN_TIME, tzinfo=timezone.utc)
+    day_end = datetime.combine(day, DEFAULT_CLOSE_TIME, tzinfo=timezone.utc)
     moment = now_utc()
 
     slots: list[AvailabilitySlot] = []

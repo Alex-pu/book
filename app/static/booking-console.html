@@ -681,12 +681,16 @@
     }
 
     async function loadAvailability() {
+      if (!$('availabilityService').value || !$('availabilityDate').value) {
+        throw new Error("Choose a service and date first");
+      }
       const data = await request(`/availability?service_id=${encodeURIComponent($("availabilityService").value)}&date=${encodeURIComponent($("availabilityDate").value)}`);
       renderTable("availabilityTable", data.slots || [], [
         { label: "Start", value: (slot) => new Date(slot.start_time).toLocaleString() },
         { label: "End", value: (slot) => new Date(slot.end_time).toLocaleTimeString() },
         { label: "Capacity", value: (slot) => slot.available_capacity }
       ]);
+      setOutput("Availability loaded", `${data.slots.length} available time(s) found`);
     }
 
     async function loadAllBookings() {
