@@ -518,6 +518,12 @@
       let data = text;
       try { data = text ? JSON.parse(text) : null; } catch (_) {}
       setOutput(`${response.status} ${response.statusText}`, data);
+      if (response.status === 401 && options.auth) {
+        state.token = "";
+        localStorage.removeItem("spaBookingToken");
+        setAuthState();
+        throw new Error("Your admin session has expired. Log in again to load services.");
+      }
       if (!response.ok) throw new Error(typeof data === "string" ? data : JSON.stringify(data));
       return data;
     }

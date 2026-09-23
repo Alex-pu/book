@@ -16,6 +16,7 @@ ACTIVE_CONFLICT_STATUSES = ("confirmed", "checked_in")
 PENDING_PAYMENT = "pending_payment"
 SLOT_STEP_MINUTES = 60
 CAPACITY_MODES = {"worker", "shared", "private"}
+BUSINESS_TIMEZONE = timezone(timedelta(hours=3))
 DEFAULT_OPEN_TIME = time(9, 0)
 DEFAULT_CLOSE_TIME = time(20, 0)
 
@@ -497,13 +498,14 @@ async def list_available_slots(
     day: date,
 ) -> list[AvailabilitySlot]:
     service = await get_service_or_raise(db, service_id)
-    day_start = datetime.combine(day, DEFAULT_OPEN_TIME, tzinfo=timezone.utc)
-    day_end = datetime.combine(day, DEFAULT_CLOSE_TIME, tzinfo=timezone.utc)
+    day_start = datetime.combine(day, DEFAULT_OPEN_TIME, tzinfo=BUSINESS_TIMEZONE)
+    day_end = datetime.combine(day, DEFAULT_CLOSE_TIME, tzinfo=BUSINESS_TIMEZONE)
     moment = now_utc()
+    business_today = moment.astimezone(BUSINESS_TIMEZONE).date()
 
     slots: list[AvailabilitySlot] = []
     duration = timedelta(minutes=service.duration_min)
-    if day < moment.date():
+    if day < business_today:
         return []
     next_hour = moment.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
     cursor = max(day_start, next_hour)

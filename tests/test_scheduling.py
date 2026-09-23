@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import pytest
 
 from app.services.scheduling import (
+    BUSINESS_TIMEZONE,
     DEFAULT_CLOSE_TIME,
     DEFAULT_OPEN_TIME,
     SchedulingError,
@@ -18,6 +19,10 @@ def test_default_daily_availability_window_is_nine_to_eight() -> None:
     assert DEFAULT_OPEN_TIME.minute == 0
     assert DEFAULT_CLOSE_TIME.hour == 20
     assert DEFAULT_CLOSE_TIME.minute == 0
+
+
+def test_business_timezone_is_east_africa_time() -> None:
+    assert BUSINESS_TIMEZONE.utcoffset(None).total_seconds() == 3 * 60 * 60
 
 
 def test_booking_window_uses_service_duration() -> None:
