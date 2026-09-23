@@ -402,7 +402,10 @@
         <div class="row">
           <button data-action="saveCapacityMode">Save Mode</button>
           <button class="dark" data-action="addCapacityWindow">Add Window</button>
+          <button class="danger" data-action="blockService">Block Service</button>
+          <button class="secondary" data-action="loadCapacity">View Blocks</button>
         </div>
+        <div id="capacityTable" class="table-wrap"></div>
       </div>
     </section>
 
@@ -663,7 +666,7 @@
     }
 
     async function addCapacityWindow() {
-      await request("/admin/service-capacity", {
+      const saved = await request("/admin/service-capacity", {
         method: "POST",
         auth: true,
         body: {
@@ -674,10 +677,46 @@
           note: $("capacityNote").value
         }
       });
+      setOutput("Availability window saved", `${saved.capacity === 0 ? "Service blocked" : "Capacity window added"}.`);
+    }
+
+    async function blockService() {
+      const serviceId = $("capacityService").value;
+      const start = $("capacityStart").value;
+      const end = $("capacityEnd").value;
+      if (!serviceId || !start || !end) throw new Error("Choose a service, start, and end time first");
+      if (new Date(end) <= new Date(start)) throw new Error("Block end must be after block start");
+      const saved = await request("/admin/service-capacity", {
+        method: "POST",
+        auth: true,
+        body: {
+          service_id: serviceId,
+          start_time: isoFromLocal(start),
+          end_time: isoFromLocal(end),
+          capacity: 0,
+          note: $("capacityNote").value || "Unavailable - maintenance"
+        }
+      });
+      setOutput("Service blocked", `Customers cannot book this service during the selected period.`);
+      await loadCapacity();
     }
 
     async function loadCapacity() {
-      await request("/admin/service-capacity", { auth: true });
+      const windows = await request(`/admin/service-capacity?service_id=${encodeURIComponent($("capacityService").value)}`, { auth: true });
+      renderTable("capacityTable", windows, [
+        { label: "Start", value: (window) => new Date(window.start_time).toLocaleString() },
+        { label: "End", value: (window) => new Date(window.end_time).toLocaleString() },
+        { label: "Status", value: (window) => window.capacity === 0 ? "Blocked" : `Capacity ${window.capacity}` },
+        { label: "Note", value: (window) => window.note || "-" },
+        { label: "Action", value: (window) => window.capacity === 0 ? `<button class="secondary remove-capacity" data-id="${window.id}">Remove block</button>` : "" }
+      ]);
+      setOutput("Availability windows loaded", `${windows.length} window(s) found`);
+    }
+
+    async function removeCapacityWindow(windowId) {
+      await request(`/admin/service-capacity/${windowId}`, { method: "DELETE", auth: true });
+      await loadCapacity();
+      setOutput("Block removed", "The service is available again during that period.");
     }
 
     async function loadAvailability() {
@@ -811,6 +850,7 @@
       loadServices,
       saveCapacityMode,
       addCapacityWindow,
+      blockService,
       loadCapacity,
       loadAvailability,
       loadAllBookings,
@@ -828,6 +868,16 @@
     };
 
     document.addEventListener("click", async (event) => {
+      const removeButton = event.target.closest("button.remove-capacity");
+      if (removeButton) {
+        removeButton.disabled = true;
+        try {
+          await removeCapacityWindow(removeButton.dataset.id);
+        } catch (error) {
+          setOutput("Error", { detail: error.message });
+        }
+        return;
+      }
       const button = event.target.closest("button[data-action]");
       if (!button) return;
       button.disabled = true;

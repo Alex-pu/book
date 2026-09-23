@@ -313,6 +313,19 @@ async def list_service_capacity_windows(
     return list(rows.scalars())
 
 
+@router.delete("/service-capacity/{window_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_service_capacity_window(
+    window_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_staff: Staff = Depends(require_admin),
+) -> None:
+    window = await db.get(ServiceCapacityWindow, window_id)
+    if window is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Capacity window not found")
+    await db.delete(window)
+    await db.commit()
+
+
 @router.get("/disbursements", response_model=list[DisbursementRead])
 async def disbursements(
     db: AsyncSession = Depends(get_db),
