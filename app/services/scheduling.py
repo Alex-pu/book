@@ -14,7 +14,7 @@ from app.schemas.booking import BookingServiceCreate
 
 ACTIVE_CONFLICT_STATUSES = ("confirmed", "checked_in")
 PENDING_PAYMENT = "pending_payment"
-SLOT_STEP_MINUTES = 30
+SLOT_STEP_MINUTES = 60
 CAPACITY_MODES = {"worker", "shared", "private"}
 DEFAULT_OPEN_TIME = time(9, 0)
 DEFAULT_CLOSE_TIME = time(20, 0)
@@ -58,6 +58,16 @@ def windows_overlap(
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def ensure_bookable_start(start_time: datetime, *, at_time: datetime | None = None) -> datetime:
+    start = ensure_aware(start_time)
+    moment = ensure_aware(at_time or now_utc())
+    if start.minute != 0 or start.second != 0 or start.microsecond != 0:
+        raise SchedulingError("Bookings must start on a whole hour")
+    if start <= moment:
+        raise SchedulingError("Bookings must be for a future date and time")
+    return start
 
 
 def iter_slot_starts(
@@ -353,6 +363,8 @@ async def schedule_service_units(
 
     remaining = quantity
     cursor = ensure_aware(start_time)
+    if cursor.minute != 0 or cursor.second != 0 or cursor.microsecond != 0:
+        cursor = cursor.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
     schedule: list[BookingScheduleItem] = []
     attempts = 0
     max_attempts = 14 * 24 * (60 // SLOT_STEP_MINUTES)
@@ -390,7 +402,9 @@ async def schedule_service_units(
         )
         remaining -= units
         if remaining > 0:
-            cursor = end_time
+            cursor = end_time.replace(minute=0, second=0, microsecond=0)
+            if cursor < end_time:
+                cursor += timedelta(hours=1)
 
     return schedule
 
@@ -419,7 +433,7 @@ async def create_soft_locked_booking(
         raise SchedulingError("Party size must be positive")
 
     moment = now_utc()
-    start = ensure_aware(start_time)
+    start = ensure_bookable_start(start_time, at_time=moment)
     normalized_lines = normalize_booking_lines(
         service_id=service_id,
         services=services,
@@ -489,8 +503,10 @@ async def list_available_slots(
 
     slots: list[AvailabilitySlot] = []
     duration = timedelta(minutes=service.duration_min)
-    cursor = max(day_start, moment + timedelta(minutes=SLOT_STEP_MINUTES))
-    cursor = cursor.replace(second=0, microsecond=0)
+    if day < moment.date():
+        return []
+    next_hour = moment.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    cursor = max(day_start, next_hour)
 
     while cursor + duration <= day_end:
         slot_end = cursor + duration

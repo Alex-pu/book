@@ -2,7 +2,13 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.services.scheduling import SchedulingError, booking_window, iter_slot_starts, windows_overlap
+from app.services.scheduling import (
+    SchedulingError,
+    booking_window,
+    ensure_bookable_start,
+    iter_slot_starts,
+    windows_overlap,
+)
 
 
 def test_booking_window_uses_service_duration() -> None:
@@ -17,6 +23,27 @@ def test_booking_window_uses_service_duration() -> None:
 def test_booking_window_rejects_naive_datetime() -> None:
     with pytest.raises(SchedulingError):
         booking_window(datetime(2026, 9, 18, 10, 0), 60)
+
+
+def test_ensure_bookable_start_requires_a_future_whole_hour() -> None:
+    moment = datetime(2026, 9, 18, 10, 15, tzinfo=timezone.utc)
+
+    assert ensure_bookable_start(
+        datetime(2026, 9, 19, 8, 0, tzinfo=timezone.utc),
+        at_time=moment,
+    ) == datetime(2026, 9, 19, 8, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(SchedulingError, match="whole hour"):
+        ensure_bookable_start(
+            datetime(2026, 9, 19, 8, 30, tzinfo=timezone.utc),
+            at_time=moment,
+        )
+
+    with pytest.raises(SchedulingError, match="future"):
+        ensure_bookable_start(
+            datetime(2026, 9, 18, 10, 0, tzinfo=timezone.utc),
+            at_time=moment,
+        )
 
 
 def test_iter_slot_starts_respects_duration_and_step() -> None:

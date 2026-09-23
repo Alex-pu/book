@@ -8,7 +8,7 @@ from app.models.catalog import Service
 from app.services.scheduling import (
     SchedulingError,
     SlotUnavailableError,
-    ensure_aware,
+    ensure_bookable_start,
     get_service_or_raise,
     now_utc,
     schedule_service_units,
@@ -25,9 +25,7 @@ async def reschedule_confirmed_booking(
     if booking.status != "confirmed":
         raise SlotUnavailableError("Only confirmed bookings can be rescheduled")
 
-    start = ensure_aware(start_time)
-    if start <= now_utc():
-        raise SchedulingError("New start time must be in the future")
+    start = ensure_bookable_start(start_time)
     lines = [(item.service, item.quantity) for item in booking.items]
     if not lines:
         raise SchedulingError("Booking has no services to reschedule")
